@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF>
+    <AssemblyName>ArrakisServerManager</AssemblyName><ApplicationManifest>app.manifest</ApplicationManifest>
+    <PublishTrimmed>false</PublishTrimmed><ApplicationIcon>Assets/arrakis.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../Arrakis.Core/Arrakis.Core.csproj"/><ProjectReference Include="../Arrakis.Infrastructure/Arrakis.Infrastructure.csproj"/></ItemGroup>
+  <ItemGroup><Resource Include="Assets/arrakis.ico"/></ItemGroup>
+</Project>

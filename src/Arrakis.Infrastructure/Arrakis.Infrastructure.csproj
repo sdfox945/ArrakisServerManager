@@ -1,0 +1,3 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup><ProjectReference Include="../Arrakis.Core/Arrakis.Core.csproj" /></ItemGroup>
+</Project>
