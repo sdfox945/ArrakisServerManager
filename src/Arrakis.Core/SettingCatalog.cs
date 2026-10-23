@@ -6,7 +6,7 @@ namespace Arrakis.Core;
 public record SettingDefinition(string File, string Section, string Key, string Category, string Description, string TemplateValue, string Kind = "number", double? Min = null, double? Max = null, string[]? Choices = null, string Direction = "Behavior not documented; verify in game.", bool ClientRequired = false, string Evidence = "Documented in installed Funcom template", string? Default = null)
 {
     public string Name => Regex.Replace(Key.Replace("m_b", "").Replace("m_", ""), "(?<=[a-z])([A-Z])", " $1");
-    public string Details => $"{Key} · {File} [{Section}]\n{Description}\n{Direction}\n{Evidence}. Engine default: {Default ?? "Unknown"}; supplied template: {TemplateValue}. Restart required." + (ClientRequired ? " ALSO requires matching client configuration. Client files are never changed by this app." : "");
+    public string Details => $"{Key} · {File} [{Section}]\n{Description}\n{Direction}\nAccepted range: {Min?.ToString(CultureInfo.InvariantCulture) ?? "not verified"} – {Max?.ToString(CultureInfo.InvariantCulture) ?? "not verified"}.\n{Evidence}. Engine default: {Default ?? "Unknown"}; supplied template: {TemplateValue}. Restart required." + (ClientRequired ? " ALSO requires matching client configuration. Client files are never changed by this app." : "");
     public string? Validate(string value)
     {
         if (value.Any(c => c is '\r' or '\n' or '\0')) return "Value must be a single line.";
@@ -17,7 +17,7 @@ public record SettingDefinition(string File, string Section, string Key, string 
         {
             if (!double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var n) || !double.IsFinite(n)) return "Enter a finite number using a decimal point.";
             if (Kind == "integer" && n != Math.Truncate(n)) return "Enter a whole number.";
-            if (Min is not null && n < Min || Max is not null && n > Max) return $"Accepted range: {Min?.ToString() ?? "unknown"}–{Max?.ToString() ?? "unknown"}.";
+            if (Min is not null && n < Min || Max is not null && n > Max) return $"Accepted range: {Min?.ToString(CultureInfo.InvariantCulture) ?? "unknown"}–{Max?.ToString(CultureInfo.InvariantCulture) ?? "unknown"}.";
         }
         return null;
     }

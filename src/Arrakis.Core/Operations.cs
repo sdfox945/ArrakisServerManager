@@ -48,17 +48,5 @@ public static partial class Redactor
 }
 public static class HealthRules
 {
-    public static IReadOnlyList<string> Evaluate(ServerSnapshot s, Preferences p)
-    {
-        var warnings = new List<string>(s.Issues);
-        if (s.Host.AvailableBytes / 1073741824.0 < p.LowHostAvailableGb) warnings.Add("Host RAM is low. Close other applications or reduce server load before playing.");
-        if (s.Guest?.MemoryPercent >= p.GuestMemoryWarningPercent) warnings.Add("Guest memory pressure is high. Inspect map requests and available VM memory.");
-        if (s.Guest?.SwapPercent >= p.SwapWarningPercent) warnings.Add("Swap usage is high. Map startup may slow down; inspect memory pressure.");
-        if (s.Vm.DemandBytes > s.Vm.AssignedBytes) warnings.Add("VM memory demand exceeds assigned RAM.");
-        foreach (var m in s.Maps.Where(m => m.OomKilled)) warnings.Add($"{m.Map}: OOMKilled. Inspect the memory limit and logs before changing resources.");
-        foreach(var m in s.Maps.Where(m=>!m.OomKilled&&(m.State.Contains("Crash",StringComparison.OrdinalIgnoreCase)||m.State.Contains("Failed",StringComparison.OrdinalIgnoreCase)||m.State.Contains("Error",StringComparison.OrdinalIgnoreCase))))warnings.Add($"{m.Map}: {m.State}. {m.Error} Inspect logs and events.");
-        foreach(var e in s.Events.Where(e=>e.Type=="Warning").Take(5))warnings.Add($"{e.Object}: {e.Reason} — {e.Message}");
-        foreach (var e in s.Events.Where(e => e.Reason == "FailedScheduling" && e.Message.Contains("memory", StringComparison.OrdinalIgnoreCase))) warnings.Add($"{e.Object}: insufficient memory for allocation.");
-        return warnings.Distinct().ToArray();
-    }
+    public static IReadOnlyList<string> Evaluate(ServerSnapshot s, Preferences p) => HealthAssessment.Notices(s,p,DateTimeOffset.Now).Select(n=>n.ToString()).Distinct().ToArray();
 }

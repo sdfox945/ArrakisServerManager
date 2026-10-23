@@ -1,14 +1,18 @@
-# Arrakis Server Manager 1.0.2
+# Arrakis Server Manager 1.1.1
 
-Critical configuration-editor integrity patch: stable file selection, one authoritative draft, frozen preview/payload approval, visual-intent replay, protected INI structure, and explicit raw-removal authorization. The BusyBox locking/rollback and unknown-outcome safeguards from v1.0.1 remain intact. See [v1.0.2 root cause and acceptance](docs/RELEASE-v1.0.2.md) and the historical [v1.0.1 report](docs/RELEASE-v1.0.1.md).
+Stable-source acceptance and remaining live-operation limits are recorded in [v1.1.1 acceptance](docs/ACCEPTANCE-v1.1.1.md). The accepted executable package is preserved separately from source-control baseline documentation.
+
+v1.1.1 corrects completed utility/Job health, verified infrastructure classification, confirmed idle/on-demand terminology and unchanged-value Add to draft behavior. See [stabilization root cause and acceptance](docs/RELEASE-v1.1.1.md).
+
+Configuration sliders with precise typed input, applicable categories, state-aware Dashboard VM controls, qualified workload health, recent resource charts, separate map/infrastructure views, current/historical diagnostics, log filtering and verified local backup status. The v1.0.2 authoritative draft/frozen-payload checks and v1.0.1 BusyBox locking, rollback and unknown-outcome safeguards remain intact. See [v1.1 release and acceptance](docs/RELEASE-v1.1.0.md) and the historical [v1.0.2 report](docs/RELEASE-v1.0.2.md).
 
 A native Windows control center for an **existing** Dune: Awakening self-hosted installation. Built with C#/.NET 10 and WPF; no browser, Node.js or local web service is required for normal administration.
 
 ## Run
 
-The self-contained Windows x64 build is under `artifacts/release/ArrakisServerManager-v1.0.2-win-x64/ArrakisServerManager.exe`. Keep the entire release folder together. No separately installed .NET runtime is required. Windows OpenSSH and the Hyper-V PowerShell module remain operating-system prerequisites for their respective integrations. The v1.0 and v1.0.1 release folders are preserved.
+The self-contained Windows x64 build is under `artifacts/release/ArrakisServerManager-v1.1.1-win-x64/ArrakisServerManager.exe`. Keep the entire release folder together. No separately installed .NET runtime is required. Windows OpenSSH and the Hyper-V PowerShell module remain operating-system prerequisites for their respective integrations. All prior release folders are preserved.
 
-Double-click the executable for Live mode, or use **Launch Demo.cmd** for isolated simulated infrastructure and a separate Demo-v1.0.2 data directory. Live mode retains the existing preferences/history/safety guard. The executable is unsigned; there is no installer, service, telemetry collector or automatic updater.
+Use **Launch as Administrator.cmd** for the Live administrator workflow: Windows requests UAC for the manager under the same Windows account. Direct Hyper-V reads and VM commands then use the existing adapter without a redundant UAC command helper. Double-clicking the executable remains supported as the current user; insufficient permissions stay explicitly unavailable, and the narrow UAC helpers remain available. **Launch Demo.cmd** needs no elevation and uses simulated infrastructure with a separate Demo-v1.1.1 data directory. Live mode retains existing preferences/history/safety guards. The executable is unsigned; there is no installer, service, telemetry collector or automatic updater.
 
 On first launch the app looks for the Steam server installation, existing VM, SSH key and a recent management-log VM address. If connection fails, Tools & Settings opens with simple connection fields. Save connection changes before refreshing. Normal monitoring does not request elevation. Your account needs Hyper-V authorization for direct VM readings; a narrow UAC snapshot and separate UAC lifecycle helper are available. The GUI remains unelevated.
 
@@ -43,7 +47,7 @@ Run from Windows PowerShell:
 
 The first command builds the complete Visual Studio solution, runs the executable regression suite, then publishes the self-contained x64 folder. `dotnet test` is not the test entry point; the dependency-free regression harness runs with `dotnet run --project tests/Arrakis.Tests -c Release`. Test evidence is written under `artifacts/tests`.
 
-The full suite includes native WPF file-picker, focus, button, tab and modal-dialog interactions against an isolated recording gateway. The editor-only subset runs with `dotnet run --project tests/Arrakis.Tests -c Release -- --editor-native`. It uses a credential-sanitized representative INI fixture derived by read-only inspection; no native editor test connects to production.
+The full suite includes 154 tests, including 27 native WPF workflows, against isolated recording gateways and BusyBox containers. The baseline editor-only subset runs with `dotnet run --project tests/Arrakis.Tests -c Release -- --editor-native`; the 39 enhancement cases run with `--enhancements`, and the 25 stabilization cases with `--stabilization`. Native tests cover slider UI Automation/keyboard input, categories, file choices, review dialogs, lifecycle state, cancellation and minimum/scaled rendering. A credential-sanitized representative INI fixture is used; no native test connects to production.
 
 An explicit, separate `--live-read-only` test-harness mode reads discovery, logs, configuration hashes, backup listings and web-tool availability. It contains no calls to mutation, trust, editor or restore methods. Do not exercise live changing controls during development.
 
@@ -57,4 +61,12 @@ Automatic map writes support the inspected `igw.funcom.com/v1` Battlegroup layou
 
 SSH key rotation remains in Funcom's Windows tooling; its current implementation disables host verification and replaces local/remote keys in a way that needs a separate security/recovery review before GUI automation. Networking, password and experimental swap actions open explicitly labeled native consoles; follow their prompts and verify outcomes there.
 
-Production-changing features are implemented and tested with simulation, **awaiting live acceptance**. Read-only live checks do not establish that backup, import, restart, update, resource edits or saves have been exercised against the actual world.
+The user accepted v1.0.2 configuration saves live. New v1.1 behavior and other production-changing functions were tested with **isolated simulation**; live mutation acceptance remains manual. No v1.1 live server operations were performed during development.
+
+## v1.1 everyday workflows
+
+- **Configuration:** categories/counts reflect recognized entries in the active document and current search. Check Include supported settings available to add to see absent entries under All categories. Saved/draft/proposed values are separate. Sliders require verified bounds; focus or initialization never rounds exact typed values. Only Add to draft changes text, and only final approval sends frozen bytes. The complete verified path is available through its tooltip/Copy path.
+- **Dashboard:** Start VM requires verified Off; graceful shutdown requires verified Running. Unknown/access-denied/transitional states disable both. Battlegroup controls use the same state rules on both pages. Resource charts retain at most 30 minutes/361 samples in memory; select 15 or 30 minutes. Missing metrics form gaps, not zero readings. GiB/MiB labels are binary units; guest RAM is already part of host RAM usage.
+- **Maps:** Game Maps is the default. Infrastructure and All expose known services and unclassified entries. Game-map editing requires an authoritative set relationship, valid original quantities and a real change. Requests reserve scheduling memory; limits are caps, not actual usage.
+- **Diagnostics:** current object problems are distinct from recovered/historical events; unknown object state stays unconfirmed. Select an event for wrapped/copyable full evidence. Log source/search/severity filters preserve source timestamps. The tail is bounded to 60 KB; Cancel read stops live tail. Auto-scroll follows only when already near the end.
+- **Backups:** refresh the official inventory to see the latest nonempty database artifact separately from encrypted INI/diagnostic copies. A downloaded copy is labeled verified only after its identity/size/SHA-256 receipt and actual local bytes match. Listing a backup does not prove it can be restored. Cloud destinations are warned about without being changed.

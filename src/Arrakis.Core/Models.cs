@@ -43,12 +43,39 @@ public record GuestStatus(long? TotalBytes = null, long? AvailableBytes = null, 
     public double MemoryPercent => Units.Percent(TotalBytes - AvailableBytes, TotalBytes);
     public double SwapPercent => Units.Percent(SwapUsedBytes, SwapTotalBytes);
 }
-public record MapInstance(string Map, string Pod, string Namespace, string State, string Request, string Limit, long? UsedBytes, int Restarts, string Error, bool OomKilled, int? Minimum = null, int SetIndex = -1, string ResourceVersion = "")
+public enum WorkloadKind { Unknown, GameMap, Infrastructure }
+public record WorkloadEvidence(string PodPhase = "", string OwnerKind = "", string OwnerName = "", string JobCondition = "", bool SuccessfulTermination = false, bool CurrentFailure = false, int? DesiredReplicas = null, int UnmetRequiredInstances = 0, string Details = "", bool RecoveredJobAttempt = false, string OwnerUid = "");
+public record MapInstance(string Map, string Pod, string Namespace, string State, string Request, string Limit, long? UsedBytes, int Restarts, string Error, bool OomKilled, int? Minimum = null, int SetIndex = -1, string ResourceVersion = "", WorkloadKind Kind = WorkloadKind.Unknown, bool? Ready = null, bool CurrentOom = false, WorkloadEvidence? Evidence = null)
 {
+    public WorkloadKind Workload => SetIndex >= 0 ? WorkloadKind.GameMap : Kind;
+    public bool IsSuccessfullyCompleted => (State=="Succeeded"||(State=="Completed"&&Evidence?.SuccessfulTermination==true)) && (Evidence==null||Evidence.SuccessfulTermination) && Evidence?.CurrentFailure!=true && !CurrentOom;
+    public bool HealthIsUnknown => State is "Unknown" or "Unavailable";
+    public bool HasCurrentProblem
+    {
+        get
+        {
+            if(Evidence?.UnmetRequiredInstances>0)return true;
+            if(Evidence?.RecoveredJobAttempt==true)return false;
+            if(Evidence?.CurrentFailure==true||CurrentOom)return true;
+            if(IsSuccessfullyCompleted)return false;
+            return State.Contains("Allocat",StringComparison.OrdinalIgnoreCase)||State.Contains("Pending",StringComparison.OrdinalIgnoreCase)||State.Contains("Crash",StringComparison.OrdinalIgnoreCase)||State.Contains("Failed",StringComparison.OrdinalIgnoreCase)||State.Contains("Error",StringComparison.OrdinalIgnoreCase)||State=="Startup"||HealthIsUnknown||Ready==false||(Pod=="—"&&Minimum>0);
+        }
+    }
+    public string CurrentWarning => !HasCurrentProblem ? "" : string.Join(" ",new[]{
+        Evidence?.UnmetRequiredInstances>0?$"{Evidence.UnmetRequiredInstances} required instance(s) not currently available.":"",
+        Error.Trim(),
+        Ready==false&&!IsSuccessfullyCompleted?"Pod is not ready.":"",
+        HealthIsUnknown?"Current workload health is unconfirmed; inspect its status.":""
+    }.Where(s=>s.Length>0).DefaultIfEmpty($"{State}: inspect current workload status, logs and events."));
+    public string HealthDetail => HasCurrentProblem ? "Current warning: "+CurrentWarning : Evidence?.RecoveredJobAttempt==true ? "Historical failed attempt; owning Job completed successfully." : IsSuccessfullyCompleted ? "Completed successfully; no current warning." : State=="Idle / On demand" ? "Idle / On demand: configured minimum and desired replicas are both zero." : string.IsNullOrWhiteSpace(Error) ? "No current warning." : "Historical detail: "+Error;
     public string Usage => Units.Bytes(UsedBytes);
     public string MinimumDisplay => Minimum?.ToString(CultureInfo.InvariantCulture) ?? "Not set";
 }
-public record ClusterEvent(string Namespace, string Object, string Reason, string Message, string Type, string Time);
+public record ClusterEvent(string Namespace, string Object, string Reason, string Message, string Type, string Time, string FirstTime = "", int Count = 1, string CurrentStatus = "Unknown", bool? Actionable = null)
+{
+    public string Relevance => Actionable == true ? "Current" : Actionable == false ? "Historical / recovered" : "Unconfirmed — inspect current object";
+    public string Details => $"{Type}: {Reason}\n{Namespace}/{Object}\nFirst observed: {(FirstTime.Length==0?"Unavailable":FirstTime)}\nLast observed: {(Time.Length==0?"Unavailable":Time)}\nOccurrences: {Count}\nCurrent object: {CurrentStatus}\n{Relevance}\n{Message}";
+}
 public record ServerSnapshot(HostStatus Host, VmStatus Vm, GuestStatus? Guest, bool SshConnected, string Battlegroup, string? Namespace, string? BattlegroupName, IReadOnlyList<MapInstance> Maps, IReadOnlyList<ClusterEvent> Events, IReadOnlyList<string> Issues, string Revision = "Unavailable", int? DirectorPort = null, string CliStatus = "Unavailable", string KubernetesStatus = "Unavailable")
 {
     public static ServerSnapshot Empty(string name) => new(new(), new(name), null, false, "Unavailable", null, null, [], [], []);
@@ -75,11 +102,12 @@ public record MapChange(MapInstance Original, string MemoryRequest, string Memor
         if (request is null || limit is null || request <= 0 || limit <= 0 || request > limit) throw new InvalidOperationException("Use positive Kubernetes memory quantities (e.g. 200Mi, 2Gi); request must not exceed limit.");
         if (Minimum is < 0 or > 100) throw new InvalidOperationException("Minimum instances must be 0–100.");
         if (Original.SetIndex < 0 || string.IsNullOrEmpty(Original.ResourceVersion)) throw new InvalidOperationException("Unsupported or stale map schema; reload or use the official editor.");
+        if (Original.Workload != WorkloadKind.GameMap) throw new InvalidOperationException("Infrastructure resources are not editable through game-map controls.");
     }
 }
 public static class Units
 {
-    public static string Bytes(long? value) => value is null ? "Unavailable" : value >= 1L<<30 ? $"{value / 1073741824.0:0.0} GB" : $"{value / 1048576.0:0} MB";
+    public static string Bytes(long? value) => value is null ? "Unavailable" : value >= 1L<<30 ? $"{value / 1073741824.0:0.0} GiB" : value>=1L<<20?$"{value / 1048576.0:0} MiB":value>=1024?$"{value / 1024.0:0.0} KiB":$"{value} B";
     public static string PercentText(double? value) => value is null ? "Unavailable" : $"{value:0.0}%";
     public static double Percent(long? used, long? total) => used is null || total is null || total <= 0 ? 0 : Math.Clamp(100.0 * used.Value / total.Value, 0, 100);
     public static long? Quantity(string? text)

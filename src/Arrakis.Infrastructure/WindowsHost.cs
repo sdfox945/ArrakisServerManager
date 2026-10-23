@@ -6,6 +6,7 @@ namespace Arrakis.Infrastructure;
 
 public sealed class WindowsHost(IProcessRunner runner,Preferences preferences,string dataRoot)
 {
+    public static bool IsAdministrator => OperatingSystem.IsWindows() && new System.Security.Principal.WindowsPrincipal(System.Security.Principal.WindowsIdentity.GetCurrent()).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
     [StructLayout(LayoutKind.Sequential)]private struct Memory { public uint Length,Load;public ulong Total,Available,PageTotal,PageAvailable,VirtualTotal,VirtualAvailable,Extended; }
     [DllImport("kernel32.dll",SetLastError=true)][return:MarshalAs(UnmanagedType.Bool)]private static extern bool GlobalMemoryStatusEx(ref Memory status);
     [DllImport("kernel32.dll",SetLastError=true)][return:MarshalAs(UnmanagedType.Bool)]private static extern bool GetSystemTimes(out long idle,out long kernel,out long user);
@@ -42,7 +43,7 @@ public sealed class WindowsHost(IProcessRunner runner,Preferences preferences,st
     }
     public async Task<string> VmActionAsync(ServerAction action,CancellationToken token)
     {
-        try{return await ElevatedAsync(BuildVmActionScript(action),token);}
+        try{if(IsAdministrator){var result=await runner.RunAsync(CommandBuilder.PowerShell(BuildVmActionScript(action)),null,token);result.EnsureSuccess();if(!result.Output.Contains("Verified VM state:"))throw new OutcomeUnknownException("VM completion marker was not returned.");return result.Output;}return await ElevatedAsync(BuildVmActionScript(action),token);}
         catch(System.ComponentModel.Win32Exception e)when(e.NativeErrorCode==1223){throw new InvalidOperationException("Windows administrator approval was cancelled. No VM command was launched.",e);}
         catch(Exception e)when(e is not OutcomeUnknownException){throw new OutcomeUnknownException("VM operation did not report a verified state. Inspect Hyper-V before retrying. "+e.Message,e);}
     }
@@ -51,7 +52,8 @@ public sealed class WindowsHost(IProcessRunner runner,Preferences preferences,st
         // Stop-VM's default parameter set requests guest shutdown. There is no -Shutdown switch.
         var command=action switch {ServerAction.StartVm=>"Start-VM -Name ",ServerAction.ShutdownVm=>"Stop-VM -Name ",ServerAction.ForceOffVm=>"Stop-VM -TurnOff -Force -Name ",_=>throw new ArgumentOutOfRangeException(nameof(action))};
         var name=CommandBuilder.PowerShellQuote(preferences.VmName);var expected=action==ServerAction.StartVm?"Running":"Off";
-        return command+name+" -Confirm:$false -ErrorAction Stop | Out-Null;$deadline=(Get-Date).AddSeconds(120);do { $state=(Get-VM -Name "+name+" -ErrorAction Stop).State.ToString();if($state -eq '"+expected+"'){Write-Output 'Verified VM state: "+expected+"';return};Start-Sleep -Seconds 2 } while((Get-Date) -lt $deadline);throw 'Requested VM state was not observed before timeout.'";
+        var required=action==ServerAction.StartVm?"Off":"Running";
+        return "$before=(Get-VM -Name "+name+" -ErrorAction Stop).State.ToString();if($before -ne '"+required+"'){throw 'VM state changed; refresh and review again.'};"+command+name+" -Confirm:$false -ErrorAction Stop | Out-Null;$deadline=(Get-Date).AddSeconds(120);do { $state=(Get-VM -Name "+name+" -ErrorAction Stop).State.ToString();if($state -eq '"+expected+"'){Write-Output 'Verified VM state: "+expected+"';return};Start-Sleep -Seconds 2 } while((Get-Date) -lt $deadline);throw 'Requested VM state was not observed before timeout.'";
     }
     public async Task<string> ElevatedAsync(string script,CancellationToken token)
     {

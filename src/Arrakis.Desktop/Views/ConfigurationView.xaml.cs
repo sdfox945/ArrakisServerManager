@@ -13,6 +13,7 @@ public partial class ConfigurationView : UserControl
     private bool synchronizing, cancelPicker, pickerSession, syncQueued;
     public ConfigurationView() { InitializeComponent(); }
     private ConfigurationViewModel? Editor => DataContext is ShellViewModel shell ? shell.Editor : DataContext as ConfigurationViewModel;
+    private void SliderChosen(object sender, RoutedPropertyChangedEventArgs<double> e) => Editor?.ChooseSliderValue(e.NewValue);
     private void SyncPicker()
     {
         if (synchronizing || FilePicker == null) return;

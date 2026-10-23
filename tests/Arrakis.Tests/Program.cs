@@ -12,7 +12,7 @@ using Arrakis.Desktop.ViewModels;
 
 namespace Arrakis.Tests;
 
-internal static class Program
+internal static partial class Program
 {
     private static readonly List<(string Name,Func<Task> Work)> cases=[];
     private static string root="";
@@ -21,7 +21,7 @@ internal static class Program
     {
         root=Path.GetFullPath(Path.Combine("artifacts","tests",DateTime.Now.ToString("yyyyMMdd-HHmmss")+"-"+Guid.NewGuid().ToString("N")[..6]));Directory.CreateDirectory(root);
         var dispatcher=Dispatcher.CurrentDispatcher;SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(dispatcher));var exit=1;
-        dispatcher.BeginInvoke(async()=>{try{exit=args.Contains("--editor-native")?await RunEditorOnly():args.Contains("--live-read-only")?await LiveProbe():await Run();}catch(Exception e){Console.Error.WriteLine(e);exit=1;}finally{dispatcher.BeginInvokeShutdown(DispatcherPriority.Background);}});Dispatcher.Run();return exit;
+        dispatcher.BeginInvoke(async()=>{try{exit=args.Contains("--stabilization")?await RunStabilization():args.Contains("--enhancements")?await RunEnhancements():args.Contains("--editor-native")?await RunEditorOnly():args.Contains("--live-read-only")?await LiveProbe():await Run();}catch(Exception e){Console.Error.WriteLine(e);exit=1;}finally{dispatcher.BeginInvokeShutdown(DispatcherPriority.Background);}});Dispatcher.Run();return exit;
     }
     private static void Test(string name,Action work)=>cases.Add((name,()=>{work();return Task.CompletedTask;}));
     private static void TestAsync(string name,Func<Task> work)=>cases.Add((name,work));
@@ -92,8 +92,12 @@ internal static class Program
         TestAsync("Save errors show concise primary text and full selectable history details",async()=>{var ui=new FakeUi();using var vm=new ShellViewModel(ui,new LocalStores(Path.Combine(root,"save-error-ui")),true);var failure=new OperationFailure("UserServerCustomSettings.ini","lock","Fresh readback matched the original.","flock: unrecognized option: w",ConfigurationFileState.VerifiedUnchanged,"Reload and retry after resolving the cause.","fixture technical details with a very long path; no file contents");await vm.RunAsync("Save UserServerCustomSettings.ini",true,_=>throw new ConfigurationSaveException(failure));Equal(1,ui.Errors.Count);True(ui.Errors[0].Summary.Contains("Verified unchanged"));True(!ui.Errors[0].Summary.Contains(" at Arrakis."));vm.SelectedHistory=vm.History.Single(h=>h.Name.StartsWith("Save "));True(vm.SelectedHistoryDetails.Contains("fixture technical details"));True(vm.SelectedHistory!.Outcome=="Failed");});
         ConfigurationIntegrityRegression.Register(TestAsync);
         NativeConfigurationRegression.Register(TestAsync,root);
+        EnhancementRegression.Register(TestAsync,root);NativeConfigurationRegression.RegisterEnhancements(TestAsync,root);
+        StabilizationRegression.Register(TestAsync);NativeConfigurationRegression.RegisterStabilization(TestAsync,root);RegisterStabilizationAdapterTests();
         return await RunCases();
     }
+    private static async Task<int> RunStabilization(){StabilizationRegression.Register(TestAsync);NativeConfigurationRegression.RegisterStabilization(TestAsync,root);RegisterStabilizationAdapterTests();return await RunCases();}
+    private static async Task<int> RunEnhancements(){EnhancementRegression.Register(TestAsync,root);NativeConfigurationRegression.RegisterEnhancements(TestAsync,root);return await RunCases();}
     private static async Task<int> RunEditorOnly(){ConfigurationIntegrityRegression.Register(TestAsync);NativeConfigurationRegression.Register(TestAsync,root);return await RunCases();}
     private static async Task<int> RunCases()
     {
@@ -132,6 +136,7 @@ internal static class Program
     private sealed class SimulatedTransport : IProcessRunner
     {
         public byte[] Config=Encoding.UTF8.GetBytes("; FixtureOnly\n[Custom]\nKeep=1\n");public int Writes,LifecycleWrites,MapDryRuns,MapWrites;public bool FailWrite,FailLifecycle,MultipleNamespaces,MapRace,NoBackupArtifact;private bool stopped;private string? backupName;private JsonNode currentBg=Bg();
+        public string? PodFixture,JobFixture;
         public string CliHash="4e4b94aec678e4ce7f25f5d53aaa0af20697f97b886ba1dacfbf64426d8c6171";public List<string> Commands=[];public string LastWriteScript="";
         public Task<ProcessResult> RunAsync(ProcessSpec spec,IProgress<string>? progress,CancellationToken token)
         {
@@ -142,7 +147,8 @@ internal static class Program
             else if(command.Contains("kubectl get battlegroups")){var bg=currentBg.DeepClone();bg["status"]=new JsonObject{{"phase",stopped?"Stopped":"Healthy"}};json=new JsonObject{{"items",new JsonArray(bg)}}.ToJsonString();}
             else if(command.Contains("kubectl get nodes"))json="{\"items\":[{\"status\":{\"conditions\":[{\"type\":\"Ready\",\"status\":\"True\"}]}}]}";
             else if(command.Contains("kubectl get ns"))json=MultipleNamespaces?"{\"items\":[{\"metadata\":{\"name\":\"funcom-seabass-demo\"}},{\"metadata\":{\"name\":\"funcom-seabass-other\"}}]}":"{\"items\":[{\"metadata\":{\"name\":\"funcom-seabass-demo\"}}]}";
-            else if(command.Contains("kubectl get pods"))json=Pods().ToJsonString();
+            else if(command.Contains("kubectl get pods"))json=PodFixture??Pods().ToJsonString();
+            else if(command.Contains("kubectl get jobs"))json=JobFixture??"{\"items\":[]}";
             else if(command.Contains("kubectl get serverstats"))json=Stats().ToJsonString();
             else if(command.Contains("kubectl get pvc"))json="{\"items\":[{\"metadata\":{\"name\":\"demo-pvc\"},\"spec\":{\"volumeName\":\"pv-demo\"}}]}";
             else if(command.Contains("kubectl get pv "))json="{\"spec\":{\"claimRef\":{\"namespace\":\"funcom-seabass-demo\",\"name\":\"demo-pvc\"},\"local\":{\"path\":\"/var/lib/rancher/k3s/storage/test-volume\"}}}";

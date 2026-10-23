@@ -2,6 +2,10 @@
 .tools/
 **/bin/
 **/obj/
+*_wpftmp.csproj
+*.dll
+*.exe
+*.pdb
 .vs/
 artifacts/
 *.user

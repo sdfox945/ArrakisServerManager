@@ -17,7 +17,7 @@ public static class KubernetesParser
 {
     public const string SetsPath="/spec/serverGroup/template/spec/sets";
     public const string DirectorPath="/spec/utilities/director/spec/configFiles/files/director.ini";
-    public static IReadOnlyList<MapInstance> Maps(JsonNode? bg,JsonNode pods,JsonNode? stats,JsonNode? metrics,JsonNode? events)
+    public static IReadOnlyList<MapInstance> Maps(JsonNode? bg,JsonNode pods,JsonNode? stats,JsonNode? metrics,JsonNode? events,JsonNode? jobs=null)
     {
         var results=new List<MapInstance>();var ns=bg.At("metadata","namespace").S();var rv=bg.At("metadata","resourceVersion").S();
         var config=new IniDocument(bg.At("spec","utilities","director","spec","configFiles","files","director.ini").S());
@@ -27,27 +27,42 @@ public static class KubernetesParser
         {
             var name=pod.At("metadata","name").S();var stat=statList.FirstOrDefault(s=>s.At("metadata","name").S()==name);
             var map=stat.At("spec","area","map").S();var index=Array.FindIndex(sets,s=>s["map"].S()==map);
-            if(map.Length==0)map=pod.At("metadata","labels","role").S("Service");
-            var containers=pod.At("spec","containers").Items().ToArray();var statuses=pod.At("status","containerStatuses").Items().ToArray();
-            var oom=statuses.Any(c=>c.At("lastState","terminated","reason").S()=="OOMKilled" || c.At("state","terminated","reason").S()=="OOMKilled");
-            var reason=statuses.Select(c=>c.At("state","waiting","reason").S()).FirstOrDefault(s=>s.Length>0);
-            var phase=reason??stat.At("status","runtime","gamePhase").S(pod.At("status","phase").S("Unknown"));
-            var error=string.Join("; ",statuses.Select(c=>c.At("state","waiting","message").S()).Where(s=>s.Length>0));
+            if(map.Length==0){var label=pod.At("metadata","labels","role").S();map=string.IsNullOrWhiteSpace(label)?name:label;}
+            var containers=pod.At("spec","containers").Items().ToArray();var statuses=pod.At("status","containerStatuses").Items().Concat(pod.At("status","initContainerStatuses").Items()).ToArray();
             var usage=metricList.FirstOrDefault(m=>m.At("metadata","name").S()==name&&m.At("metadata","namespace").S()==ns);
             var uses=usage?["containers"].Items().Select(c=>Units.Quantity(c.At("usage","memory").S())).ToArray();
             var mem=index>=0?sets[index].At("resources","requests","memory").S("Unavailable"):containers.Select(c=>c.At("resources","requests","memory").S()).FirstOrDefault(s=>s.Length>0)??"Unavailable";
             var limit=index>=0?sets[index].At("resources","limits","memory").S("Unavailable"):containers.Select(c=>c.At("resources","limits","memory").S()).FirstOrDefault(s=>s.Length>0)??"Unavailable";
             var minimum=int.TryParse(config.Get(map,"MinServers"),out var min)?min:(int?)null;
-            results.Add(new(map,name,ns,phase,mem,limit,uses?.Length>0&&uses.All(v=>v!=null)?uses.Sum(v=>v!.Value):null,statuses.Sum(c=>c["restartCount"].I()??0),oom?"OOMKilled; "+error:error,oom,minimum,index,rv));
+            var inspected=WorkloadParser.Inspect(pod,stat,index,index>=0?sets[index]["replicas"].I():null,jobs);
+            var ready=pod.At("status","conditions").Items().FirstOrDefault(c=>c["type"].S()=="Ready")?["status"].S();
+            results.Add(new(map,name,ns,inspected.State,mem,limit,uses?.Length>0&&uses.All(v=>v!=null)?uses.Sum(v=>v!.Value):null,statuses.Sum(c=>c["restartCount"].I()??0),inspected.Error,inspected.Oom,minimum,index,rv,inspected.Kind,ready=="True"?true:ready=="False"?false:null,inspected.CurrentOom,inspected.Evidence));
         }
         for(var i=0;i<sets.Length;i++)
         {
             var set=sets[i];var map=set["map"].S();if(results.Any(r=>r.Map==map))continue;
-            results.Add(new(map,"—",ns,"Not running",set.At("resources","requests","memory").S("Unavailable"),set.At("resources","limits","memory").S("Unavailable"),null,0,"",false,int.TryParse(config.Get(map,"MinServers"),out var min)?min:null,i,rv));
+            var minimum=int.TryParse(config.Get(map,"MinServers"),out var min)?min:(int?)null;var desired=set["replicas"].I();
+            var idle=minimum==0&&desired==0&&bg.At("status","phase").S()=="Healthy"&&bg.At("spec","stop").S()!="true";
+            results.Add(new(map,"—",ns,idle?"Idle / On demand":"Not running",set.At("resources","requests","memory").S("Unavailable"),set.At("resources","limits","memory").S("Unavailable"),null,0,"",false,minimum,i,rv,Evidence:new(DesiredReplicas:desired,Details:$"No pod observed. Configured minimum: {minimum?.ToString(CultureInfo.InvariantCulture)??"unavailable"}; desired replicas: {desired?.ToString(CultureInfo.InvariantCulture)??"unavailable"}.")));
         }
-        return results.OrderByDescending(r=>r.OomKilled||r.State.Contains("Allocat")||r.State.Contains("Crash")).ThenBy(r=>r.Map).ToArray();
+        WorkloadParser.IncludeJobsWithoutPods(results,jobs,ns);
+        return WorkloadParser.RequiredAvailability(results);
     }
-    public static IReadOnlyList<ClusterEvent> Events(JsonNode node)=>node["items"].Items().Select(e=>new ClusterEvent(e.At("metadata","namespace").S(),e.At("involvedObject","name").S(),e["reason"].S(),Redactor.Clean(e["message"].S()),e["type"].S(),e["lastTimestamp"].S(e.At("metadata","creationTimestamp").S()))).OrderByDescending(e=>e.Time).Take(150).ToArray();
+    public static IReadOnlyList<ClusterEvent> Events(JsonNode node,IReadOnlyList<MapInstance>? maps=null)
+    {
+        return node["items"].Items().Select(e=>
+        {
+            var ns=e.At("metadata","namespace").S();var name=e.At("involvedObject","name").S(e.At("regarding","name").S());
+            var map=maps?.FirstOrDefault(m=>m.Namespace==ns&&(m.Pod==name||(m.Evidence?.OwnerKind=="Job"&&m.Evidence.OwnerName==name)));
+            var first=e["firstTimestamp"].S(e["eventTime"].S(e.At("metadata","creationTimestamp").S()));
+            var last=e.At("series","lastObservedTime").S(e["lastTimestamp"].S(e["eventTime"].S(first)));
+            return new ClusterEvent(ns,name,e["reason"].S(),Redactor.Clean(e["message"].S(e["note"].S())),e["type"].S(),last,first,e.At("series","count").I()??e["count"].I()??1,map?.State??"Unknown",map==null?null:map.HasCurrentProblem);
+        }).GroupBy(e=>(e.Namespace,e.Object,e.Reason,e.Message,e.Type)).Select(g=>
+        {
+            var last=g.OrderByDescending(e=>DateTimeOffset.TryParse(e.Time,out var t)?t:DateTimeOffset.MinValue).First();
+            return last with {Count=g.Sum(e=>Math.Max(1,e.Count)),FirstTime=g.OrderBy(e=>e.FirstTime,StringComparer.Ordinal).First().FirstTime};
+        }).OrderByDescending(e=>e.Time,StringComparer.Ordinal).Take(150).ToArray();
+    }
     public static int? DirectorPort(JsonNode services,string ns)
     {
         var ports=services["items"].Items().Where(s=>s.At("metadata","namespace").S()==ns).SelectMany(s=>s.At("spec","ports").Items()).Where(p=>p["port"].I()==11717).Select(p=>p["nodePort"].I()).Where(p=>p is >0 and <=65535).Distinct().ToArray();return ports.Length==1?ports[0]:null;

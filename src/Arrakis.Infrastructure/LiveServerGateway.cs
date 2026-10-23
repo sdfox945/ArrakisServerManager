@@ -24,7 +24,8 @@ public sealed partial class LiveServerGateway(IProcessRunner runner,Preferences 
         var host=Windows.ReadHost();var vm=await Windows.ReadVmAsync(token);Ssh.Ip=vm.Ip;var issues=new List<string>();
         if(vm.Error!=null)issues.Add("Hyper-V unavailable: "+vm.Error+" Use the Hyper-V Administrators group or enter the VM IPv4 address in Tools.");
         if(!Directory.Exists(preferences.InstallationDirectory))issues.Add("Steam server installation not found. Set its directory in Tools.");
-        GuestStatus? guest=null;bool connected=false;JsonNode? pods=null,stats=null,metrics=null,events=null,services=null;var cliStatus="Unavailable";var kubeStatus="Unavailable";
+        if(vm.State=="Off"&&vm.Error==null){battlegroup=null;snapshot=new(host,vm,null,false,"Stopped",null,null,[],[],issues);return snapshot;}
+        GuestStatus? guest=null;bool connected=false;JsonNode? pods=null,stats=null,metrics=null,events=null,services=null,jobs=null;var cliStatus="Unavailable";var kubeStatus="Unavailable";
         try
         {
             var raw=await Ssh.ReadAsync(GuestScript,token);var g=J.Parse(raw);guest=new(g["total"].L(),g["available"].L(),g["swapTotal"].L(),g["swapUsed"].L(),double.TryParse(g["cpu"].S(),System.Globalization.CultureInfo.InvariantCulture,out var cpu)?cpu:null,g["diskTotal"].L(),g["diskUsed"].L());connected=true;
@@ -39,7 +40,8 @@ public sealed partial class LiveServerGateway(IProcessRunner runner,Preferences 
             if(ns.Length>0)
             {
                 CommandBuilder.ResourceName(ns);
-                pods=J.Parse(await Ssh.ReadAsync("set -o pipefail; sudo -n kubectl get pods -n "+Q(ns)+" -o json | jq '{items:[.items[]|{metadata:(.metadata|{name,namespace,labels}),spec:{containers:[.spec.containers[]|{name,resources}]},status}]} '",token));
+                pods=J.Parse(await Ssh.ReadAsync("set -o pipefail; sudo -n kubectl get pods -n "+Q(ns)+" -o json | jq '{items:[.items[]|{metadata:(.metadata|{name,namespace,uid,labels,ownerReferences}),spec:{restartPolicy,containers:[.spec.containers[]|{name,resources}]},status}]} '",token));
+                jobs=await OptionalJson("sudo -n kubectl get jobs -n "+Q(ns)+" -o json | jq '{items:[.items[]|{metadata:(.metadata|{name,namespace,uid,ownerReferences}),status:(.status|{active,succeeded,failed,conditions})}]}'",token,issues,"Kubernetes Jobs");
                 stats=await OptionalJson("sudo -n kubectl get serverstats -n "+Q(ns)+" -o json | jq '{items:[.items[]|{metadata:(.metadata|{name,namespace}),spec:{area:.spec.area},status:{runtime:.status.runtime}}]}'",token,issues,"ServerStats");
                 metrics=await OptionalJson("sudo -n kubectl get --raw "+Q("/apis/metrics.k8s.io/v1beta1/namespaces/"+ns+"/pods"),token,issues,"Pod usage metrics");
                 events=await OptionalJson("sudo -n kubectl get events -n "+Q(ns)+" -o json",token,issues,"Kubernetes events");
@@ -47,9 +49,9 @@ public sealed partial class LiveServerGateway(IProcessRunner runner,Preferences 
             }
         }
         catch(Exception e)when(e is not OperationCanceledException) { issues.Add("Connection/discovery: "+Redactor.Clean(e.Message));battlegroup=null; }
-        var maps=pods==null?[]:KubernetesParser.Maps(battlegroup,pods,stats,metrics,events);
+        var maps=pods==null?[]:KubernetesParser.Maps(battlegroup,pods,stats,metrics,events,jobs);
         var revision=battlegroup.At("spec","serverGroup","template","spec","sets").Items().Select(s=>s["image"].S()).FirstOrDefault(s=>s.Length>0)?.Split(':').Last()??"Unavailable";
-        snapshot=new(host,vm,guest,connected,battlegroup.At("status","phase").S("Unavailable"),battlegroup.At("metadata","namespace")?.ToString(),battlegroup.At("metadata","name")?.ToString(),maps,events==null?[]:KubernetesParser.Events(events),issues,revision,services==null?null:KubernetesParser.DirectorPort(services,battlegroup.At("metadata","namespace").S()),cliStatus,kubeStatus);return snapshot;
+        snapshot=new(host,vm,guest,connected,battlegroup.At("status","phase").S("Unavailable"),battlegroup.At("metadata","namespace")?.ToString(),battlegroup.At("metadata","name")?.ToString(),maps,events==null?[]:KubernetesParser.Events(events,maps),issues,revision,services==null?null:KubernetesParser.DirectorPort(services,battlegroup.At("metadata","namespace").S()),cliStatus,kubeStatus);return snapshot;
     }
     private async Task<JsonNode?> OptionalJson(string command,CancellationToken token,List<string> issues,string label) { try { return J.Parse(await Ssh.ReadAsync("set -o pipefail; "+command,token)); }catch(Exception e)when(e is not OperationCanceledException){issues.Add(label+": unavailable ("+Redactor.Clean(e.Message)+")");return null;} }
     private const string GuestScript="""

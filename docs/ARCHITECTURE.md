@@ -14,6 +14,12 @@ The single-battlegroup CLI contract is checked immediately before mutations, inc
 
 ## Mutation boundary
 
+v1.1 adds shared OperationalRules for verified VM/battlegroup availability and a preparation lease for lifecycle/map reviews as well as configuration review. The existing action adapters remain the only mutation implementation. The administrator launcher requests Windows UAC explicitly; asInvoker remains the application manifest, so Demo does not require elevation.
+
+PresentationRules also provides range-derived slider increments, qualified workload health and bounded in-memory resource samples. ProposalSlider emits editing intent only for native user/automation choices, never for a binding/range update. Document categories are stable identities computed from configured recognized entries and search, with absent supported entries kept separately available to add. The v1.0.2 authoritative document and frozen save transaction remain unchanged.
+
+Event parsing preserves first/last observation and recurrence, correlates current object state and groups duplicate messages. Historical/recovered and unconfirmed events remain in full diagnostics; historical container OOM evidence does not by itself mark a recovered pod failed. Known role metadata/configured relationships classify workloads; unknowns remain visible under All. Verified database downloads add local identity/hash receipts; inventory refresh rehashes the newest matching copy before claiming local verification.
+
 Every UI mutation requires confirmation. Configuration/map changes use a detailed review window. A process argument list transports PowerShell/SSH parameters; PowerShell literals and POSIX shell words are escaped independently. User-facing fields cannot become command verbs. Kubernetes names, artifact names, IP addresses and paths are validated. Private configuration bytes are sent over SSH stdin, never as logged command arguments.
 
 The operation coordinator admits one foreground/background infrastructure operation at a time. A durable safety record is written before mutations and cleared only on a known completion/failure. Unknown transport outcomes retain the lock across restarts. The latest guard survives bounded history retention. Read-only polling does not erase mutation output or crowd out successful operations. Local user review explicitly clears unresolved guards; the app never retries an uncertain mutation automatically.

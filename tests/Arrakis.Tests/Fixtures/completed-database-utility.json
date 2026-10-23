@@ -1,0 +1,15 @@
+{
+  "metadata": {
+    "name": "fixture-database-utility",
+    "namespace": "funcom-seabass-demo",
+    "uid": "11111111-1111-1111-1111-111111111111",
+    "labels": { "role": "igw-database-utility" },
+    "ownerReferences": [{ "apiVersion": "igw.funcom.com/v1", "kind": "DatabaseDeployment", "name": "fixture-database", "uid": "22222222-2222-2222-2222-222222222222", "controller": true }]
+  },
+  "spec": { "restartPolicy": "Never", "containers": [{ "name": "util" }] },
+  "status": {
+    "phase": "Succeeded",
+    "conditions": [{ "type": "Ready", "status": "False", "reason": "PodCompleted" }],
+    "containerStatuses": [{ "name": "util", "ready": false, "restartCount": 0, "state": { "terminated": { "exitCode": 0, "reason": "Completed" } } }]
+  }
+}

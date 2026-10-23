@@ -20,7 +20,7 @@ using Arrakis.Infrastructure;
 
 namespace Arrakis.Tests;
 
-internal static class NativeConfigurationRegression
+internal static partial class NativeConfigurationRegression
 {
     public static void Register(Action<string,Func<Task>> add,string root)
     {
@@ -109,7 +109,7 @@ internal static class NativeConfigurationRegression
             if(Application.Current==null){var app=new Application{ShutdownMode=ShutdownMode.OnExplicitShutdown};app.Resources.MergedDictionaries.Add(new ResourceDictionary{Source=new Uri("/ArrakisServerManager;component/Theme.xaml",UriKind.Relative)});}
             var evidence=Path.Combine(root,"native-editor",name);Directory.CreateDirectory(evidence);var gateway=new FixtureGateway();var ui=new ModalUi(evidence);var vm=new ShellViewModel(ui,new LocalStores(Path.Combine(evidence,"data")),true,_=>gateway);var window=new MainWindow{DataContext=vm};ui.Owner=window;window.Show();window.Activate();await window.Dispatcher.InvokeAsync(()=>{},DispatcherPriority.ApplicationIdle);var nav=Descendants(window).OfType<ListBox>().Single(l=>ReferenceEquals(l.ItemsSource,vm.Pages));((ISelectionItemProvider)new ListBoxItemAutomationPeer(vm.Pages[2],new ListBoxAutomationPeer(nav)).GetPattern(PatternInterface.SelectionItem)).Select();await Until(()=>Descendants(window).OfType<Button>().Any(b=>(b.Content as string)=="Load current configuration"&&b.IsVisible));return new(){Window=window,Vm=vm,Ui=ui,Gateway=gateway,Evidence=evidence};
         }
-        public async Task Load(){Invoke(Button("Load current configuration"));await Until(()=>!Vm.IsBusy&&Vm.Editor.CanInteract&&Vm.Editor.Files.Count==3);await Pump();}
+        public async Task Load(){await Until(()=>Button("Load current configuration").IsEnabled&&Vm.Editor.CanInteract);Invoke(Button("Load current configuration"));await Until(()=>!Vm.IsBusy&&Vm.Editor.CanInteract&&Vm.Editor.Files.Count==3);await Pump();}
         public async Task SelectFile(string name,bool escape=false)
         {
             var picker=Picker;picker.Focus();var peer=new ComboBoxAutomationPeer(picker);var expand=(IExpandCollapseProvider)peer.GetPattern(PatternInterface.ExpandCollapse);expand.Expand();await Pump();
@@ -119,7 +119,7 @@ internal static class NativeConfigurationRegression
         }
         public async Task EditLoot(string value)
         {
-            await Mode(0);var grid=Descendants(Window).OfType<DataGrid>().Single(g=>g.ItemsSource==Vm.Editor.SettingsView);grid.SetCurrentValue(Selector.SelectedItemProperty,Vm.Editor.Settings.Single(s=>s.Definition.Key=="LootRespawnSpeed"));await Pump();var input=Descendants(Window).OfType<TextBox>().Single(t=>AutomationProperties.GetName(t)=="Proposed setting value");input.Focus();input.SetCurrentValue(TextBox.TextProperty,value);Invoke(Button("Add to draft"));await Pump();
+            await Mode(0);var grid=Descendants(Window).OfType<DataGrid>().Single(g=>g.ItemsSource==Vm.Editor.SettingsView);grid.SetCurrentValue(Selector.SelectedItemProperty,Vm.Editor.Settings.Single(s=>s.Definition.Key=="LootRespawnSpeed"));await Pump();var input=Descendants(Window).OfType<TextBox>().Single(t=>AutomationProperties.GetName(t)=="Proposed setting value");input.Focus();input.SetCurrentValue(TextBox.TextProperty,value);await Until(()=>Button("Add to draft").IsEnabled);Invoke(Button("Add to draft"));await Pump();
         }
         public async Task Mode(int index){var tabs=(TabControl)View.FindName("EditorModes");var item=(TabItem)tabs.Items[index];((ISelectionItemProvider)new TabItemAutomationPeer(item,new TabControlAutomationPeer(tabs)).GetPattern(PatternInterface.SelectionItem)).Select();await Pump();}
         public async Task Save(){await Until(()=>!Vm.IsBusy&&Vm.Editor.CanInteract);await Window.Dispatcher.InvokeAsync(()=>{},DispatcherPriority.ApplicationIdle);Check(Vm.Editor.IsDirty,"Native save requires a preserved dirty draft.");await Until(()=>Button("Review & save").IsEnabled);Invoke(Button("Review & save"));await Pump();await Until(()=>!Vm.IsBusy&&Vm.Editor.CanInteract);}
@@ -150,13 +150,16 @@ internal static class NativeConfigurationRegression
     {
         private readonly Dictionary<string,ConfigFile> files=new[]{"UserGame.ini","UserEngine.ini","UserServerCustomSettings.ini"}.Select(n=>ConfigurationIntegrityRegression.Fixture(n)).ToDictionary(f=>f.Name);
         public List<(ConfigFile Original,byte[] Payload)> Saves=[];public int LoadCalls,RefreshCalls;public TaskCompletionSource? HoldSave;
+        public ServerSnapshot Status=ServerSnapshot.Empty("isolated fixture");public bool AllowActions,FailRefresh,FailAction,FailLogs;public TaskCompletionSource? HoldRefresh,HoldLogs;public List<ServerAction> Actions=[];public List<MapChange> MapWrites=[];public string LogLines="2026-10-23T01:00:00Z [INFO] fixture ready\n2026-10-23T01:01:00Z [WARNING] fixture warning\n2026-10-23T01:02:00Z [ERROR] fixture failure\n2026-10-23T01:03:00Z [INFO] no error occurred";
         public bool IsDemo=>true;
         public ConfigFile Current(string name){var f=files[name];return f with{Bytes=f.Bytes.ToArray()};}
-        public Task<ServerSnapshot> RefreshAsync(CancellationToken token){RefreshCalls++;return Task.FromResult(ServerSnapshot.Empty("isolated fixture"));}
+        public async Task<ServerSnapshot> RefreshAsync(CancellationToken token){RefreshCalls++;if(HoldRefresh!=null)await HoldRefresh.Task.WaitAsync(token);if(FailRefresh)throw new IOException("Isolated refresh failure");return Status;}
         public Task<IReadOnlyList<ConfigFile>> LoadConfigurationAsync(CancellationToken token){LoadCalls++;return Task.FromResult<IReadOnlyList<ConfigFile>>(files.Values.Select(f=>Current(f.Name)).ToArray());}
         public async Task<ConfigFile> SaveConfigurationAsync(ConfigFile original,byte[] proposed,CancellationToken token){ConfigurationIntegrity.ValidateProposal(original,(original with{Bytes=proposed}).Text);if(original.Hash!=files[original.Name].Hash)throw new InvalidOperationException("Fixture conflict.");Saves.Add((original,proposed.ToArray()));if(HoldSave!=null)await HoldSave.Task;var saved=new ConfigFile(original.Name,original.RemotePath,proposed.ToArray(),ConfigurationIntegrity.Hash(proposed));files[original.Name]=saved;return Current(original.Name);}
-        public Task<ActionResult> ExecuteAsync(ServerAction a,string? argument,IProgress<string>? p,CancellationToken t)=>throw new InvalidOperationException("Native editor test must not call lifecycle operations.");
+        public async Task<ActionResult> ExecuteAsync(ServerAction a,string? argument,IProgress<string>? p,CancellationToken t){if(!AllowActions)throw new InvalidOperationException("Native editor test must not call lifecycle operations.");Actions.Add(a);await Task.Delay(35,t);if(FailAction)throw new InvalidOperationException("Isolated operation failure");Status=a switch{ServerAction.ShutdownVm=>Status with{Vm=Status.Vm with{State="Off"},SshConnected=false,Guest=null,Battlegroup="Stopped",Maps=[]},ServerAction.StartVm=>Status with{Vm=Status.Vm with{State="Running"},SshConnected=true,Battlegroup="Healthy"},ServerAction.StopBattlegroup=>Status with{Battlegroup="Stopped"},ServerAction.StartBattlegroup=>Status with{Battlegroup="Healthy"},_=>Status};return new("Isolated verified "+a,true);}
         public Task<IReadOnlyList<BackupArtifact>> ListBackupsAsync(CancellationToken t)=>Task.FromResult<IReadOnlyList<BackupArtifact>>([]);
-        public Task<string> DownloadBackupAsync(BackupArtifact a,CancellationToken t)=>throw new NotSupportedException();public Task<string> ReadLogsAsync(string s,MapInstance? p,CancellationToken t)=>throw new NotSupportedException();public Task<string> ChangeMapAsync(MapChange c,CancellationToken t)=>throw new NotSupportedException();public Task<string> CheckUpdatesAsync(CancellationToken t)=>throw new NotSupportedException();public Task<Uri> GetToolUriAsync(bool d,CancellationToken t)=>throw new NotSupportedException();public Task LaunchOfficialEditorAsync(CancellationToken t)=>throw new NotSupportedException();public Task<string> LaunchMaintenanceAsync(MaintenanceAction a,CancellationToken t)=>throw new NotSupportedException();
+        public async Task<string> ReadLogsAsync(string s,MapInstance? p,CancellationToken t){if(HoldLogs!=null)await HoldLogs.Task.WaitAsync(t);if(FailLogs)throw new IOException("Isolated log failure");return LogLines;}
+        public Task<string> ChangeMapAsync(MapChange c,CancellationToken t){if(!AllowActions)throw new InvalidOperationException("Map mutation not enabled for this isolated case.");c.Validate();MapWrites.Add(c);Status=Status with{Maps=Status.Maps.Select(m=>m.Map==c.Original.Map?m with{Request=c.MemoryRequest,Limit=c.MemoryLimit,Minimum=c.Minimum,ResourceVersion="2"}:m).ToArray()};return Task.FromResult("Isolated map change verified");}
+        public Task<string> DownloadBackupAsync(BackupArtifact a,CancellationToken t)=>throw new NotSupportedException();public Task<string> CheckUpdatesAsync(CancellationToken t)=>throw new NotSupportedException();public Task<Uri> GetToolUriAsync(bool d,CancellationToken t)=>throw new NotSupportedException();public Task LaunchOfficialEditorAsync(CancellationToken t)=>throw new NotSupportedException();public Task<string> LaunchMaintenanceAsync(MaintenanceAction a,CancellationToken t)=>throw new NotSupportedException();
     }
 }

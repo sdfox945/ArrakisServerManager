@@ -25,6 +25,7 @@ public sealed partial class LiveServerGateway
         var result=await Ssh.RunAsync("sudo -n cat "+Q(current.Path),token,TimeSpan.FromMinutes(10),binary:path);result.EnsureSuccess();
         await using var stream=File.OpenRead(path);var hash=Convert.ToHexStringLower(await System.Security.Cryptography.SHA256.HashDataAsync(stream,token));
         if(hash!=remoteHash || stream.Length!=current.Size) { stream.Close();File.Move(path,path+".unverified",true);throw new IOException("Downloaded backup failed size/hash verification. An .unverified file was retained for inspection."); }
+        await BackupVerification.RecordAsync(path,current,hash,token);
         return "Database backup downloaded and SHA-256 verified: "+path;
     }
 }
