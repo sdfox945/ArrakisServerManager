@@ -21,7 +21,7 @@ internal static partial class Program
     {
         root=Path.GetFullPath(Path.Combine("artifacts","tests",DateTime.Now.ToString("yyyyMMdd-HHmmss")+"-"+Guid.NewGuid().ToString("N")[..6]));Directory.CreateDirectory(root);
         var dispatcher=Dispatcher.CurrentDispatcher;SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(dispatcher));var exit=1;
-        dispatcher.BeginInvoke(async()=>{try{exit=args.Contains("--correction")?await RunCorrection():args.Contains("--stabilization")?await RunStabilization():args.Contains("--enhancements")?await RunEnhancements():args.Contains("--editor-native")?await RunEditorOnly():args.Contains("--live-read-only")?await LiveProbe():await Run();}catch(Exception e){Console.Error.WriteLine(e);exit=1;}finally{dispatcher.BeginInvokeShutdown(DispatcherPriority.Background);}});Dispatcher.Run();return exit;
+        dispatcher.BeginInvoke(async()=>{try{exit=args.Contains("--update-dialog-ux")?await RunUpdateDialogUx():args.Contains("--application-update-probe")?await ApplicationUpdateProbe():args.Contains("--application-updates")?await RunApplicationUpdates():args.Contains("--correction")?await RunCorrection():args.Contains("--stabilization")?await RunStabilization():args.Contains("--enhancements")?await RunEnhancements():args.Contains("--editor-native")?await RunEditorOnly():args.Contains("--live-read-only")?await LiveProbe():await Run();}catch(Exception e){Console.Error.WriteLine(e);exit=1;}finally{dispatcher.BeginInvokeShutdown(DispatcherPriority.Background);}});Dispatcher.Run();return exit;
     }
     private static void Test(string name,Action work)=>cases.Add((name,()=>{work();return Task.CompletedTask;}));
     private static void TestAsync(string name,Func<Task> work)=>cases.Add((name,work));
@@ -95,9 +95,20 @@ internal static partial class Program
         EnhancementRegression.Register(TestAsync,root);NativeConfigurationRegression.RegisterEnhancements(TestAsync,root);
         StabilizationRegression.Register(TestAsync);NativeConfigurationRegression.RegisterStabilization(TestAsync,root);RegisterStabilizationAdapterTests();
         WaterExtractionRegression.Register(TestAsync);NativeConfigurationRegression.RegisterWaterExtraction(TestAsync,root);
+        ApplicationUpdateRegression.Register(TestAsync,root);NativeConfigurationRegression.RegisterApplicationUpdates(TestAsync,root);
+        NativeConfigurationRegression.RegisterUpdateDialogUx(TestAsync,root);
         return await RunCases();
     }
     private static async Task<int> RunCorrection(){WaterExtractionRegression.Register(TestAsync);NativeConfigurationRegression.RegisterWaterExtraction(TestAsync,root);return await RunCases();}
+    private static async Task<int> RunApplicationUpdates(){ApplicationUpdateRegression.Register(TestAsync,root);NativeConfigurationRegression.RegisterApplicationUpdates(TestAsync,root);return await RunCases();}
+    private static async Task<int> RunUpdateDialogUx(){NativeConfigurationRegression.RegisterUpdateDialogUx(TestAsync,root);return await RunCases();}
+    // Explicit opt-in integration probe. Not registered in the offline automated suite; never constructs a server gateway.
+    private static async Task<int> ApplicationUpdateProbe()
+    {
+        using var service=new GitHubApplicationUpdateService(new MemoryApplicationUpdateCache());var result=await service.CheckAsync(true,default);var installed=SemanticVersion.FromAssembly(typeof(Arrakis.Desktop.MainWindow).Assembly);
+        var report=new{endpoint=ApplicationUpdateSource.LatestApi,installed=installed.ToString(),latest=result.Release.Version.ToString(),result.Release.ReleaseUrl,asset=result.Release.Zip.Name,result.Release.Zip.Size,result.Release.Zip.Sha256,newer=result.Release.Version.CompareTo(installed)>0,checkedAt=result.CheckedAt,downloadPerformed=false,serverGatewayCreated=false};
+        var json=JsonSerializer.Serialize(report,new JsonSerializerOptions{WriteIndented=true});File.WriteAllText(Path.Combine(root,"application-update-probe.json"),json);Console.WriteLine(json);return 0;
+    }
     private static async Task<int> RunStabilization(){StabilizationRegression.Register(TestAsync);NativeConfigurationRegression.RegisterStabilization(TestAsync,root);RegisterStabilizationAdapterTests();return await RunCases();}
     private static async Task<int> RunEnhancements(){EnhancementRegression.Register(TestAsync,root);NativeConfigurationRegression.RegisterEnhancements(TestAsync,root);return await RunCases();}
     private static async Task<int> RunEditorOnly(){ConfigurationIntegrityRegression.Register(TestAsync);NativeConfigurationRegression.Register(TestAsync,root);return await RunCases();}

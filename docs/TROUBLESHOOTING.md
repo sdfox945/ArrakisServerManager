@@ -1,5 +1,11 @@
 # Troubleshooting
 
+## Arrakis application updates
+
+These are separate from Funcom server updates. An offline/rate-limited/invalid check keeps the installed version visible and never establishes Up to date. Check manually in Tools to bypass the 24-hour successful-result cache. Automatic checks can be disabled without disabling manual checks. Missing assets, digests or an unsupported size produce a safe official-GitHub fallback, not an unverified in-app package.
+
+If a transfer fails or SHA-256 mismatches, no completed ZIP is offered. Retry when connected; use a separate writable local folder with enough space. Existing corrupted ZIPs are preserved: choose an empty folder or rename them yourself. An interrupted process may leave a unique .partial file; it is not a verified ZIP and may be removed after closing Arrakis. Never delete preferences/history/safety state during a portable upgrade. The downloader does not extract, run or install content, and app-update failures do not clear or create server unknown-outcome guards. See APPLICATION-UPDATES.md for bounded requests, redirects, timeouts and signature limitations.
+
 ## Hyper-V information says Unavailable
 
 The current non-elevated Windows account may lack permission even though the Hyper-V module is installed. The app still reads Windows metrics and can connect directly to a trusted VM address. In Tools, use **Read Hyper-V details with UAC** for a narrow read-only snapshot, then save the discovered address if needed. For regular automatic VM information, configure the account's Hyper-V authorization through Windows administration and sign in again. The app never changes group membership or networking automatically.

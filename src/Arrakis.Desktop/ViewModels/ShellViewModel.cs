@@ -18,10 +18,10 @@ public sealed partial class ShellViewModel : Bindable,IDisposable
     private readonly DispatcherTimer timer;private CancellationTokenSource? active;private bool refreshing;
     private readonly Func<bool,IServerGateway>? gatewayFactory;
     private string? preparation;
-    public ShellViewModel(IUserInteraction ui,LocalStores stores,bool demo,Func<bool,IServerGateway>? gatewayFactory=null)
+    public ShellViewModel(IUserInteraction ui,LocalStores stores,bool demo,Func<bool,IServerGateway>? gatewayFactory=null,Func<bool,IApplicationUpdateService>? applicationUpdateFactory=null)
     {
         this.ui=ui;this.stores=stores;this.gatewayFactory=gatewayFactory;root=stores.Root;Preferences=stores.Load();operations=new(stores);operations.Changed+=()=>{OnPropertyChanged(nameof(IsBusy));OnPropertyChanged(nameof(CanOperate));OnPropertyChanged(nameof(CanCancel));OnPropertyChanged(nameof(OperationState));CommandManager.InvalidateRequerySuggested();};
-        Gateway=CreateGateway(demo);this.demo=demo;Snapshot=ServerSnapshot.Empty(Preferences.VmName);
+        Gateway=CreateGateway(demo);this.demo=demo;Snapshot=ServerSnapshot.Empty(Preferences.VmName);ApplicationUpdates=new(ui,stores,Preferences,demo,applicationUpdateFactory);
         MapsView=CollectionViewSource.GetDefaultView(Maps);MapsView.Filter=o=>o is MapInstance m&&($"{m.Map} {m.Pod} {m.State} {m.Error}".Contains(MapSearch,StringComparison.OrdinalIgnoreCase))&&(MapFilter=="All states"||m.State.Contains(MapFilter,StringComparison.OrdinalIgnoreCase))&&(MapMode=="All"||m.Workload==(MapMode=="Game Maps"?WorkloadKind.GameMap:WorkloadKind.Infrastructure));
         BackupsView=CollectionViewSource.GetDefaultView(Backups);BackupsView.Filter=o=>o is BackupArtifact a&&(BackupCategory=="All categories"||a.Category==BackupCategory);
         Editor=new(this,ui);
@@ -64,13 +64,14 @@ public sealed partial class ShellViewModel : Bindable,IDisposable
     public IServerGateway Gateway { get; private set; }
     public Preferences Preferences { get; }
     public ConfigurationViewModel Editor { get; }
+    public ApplicationUpdateViewModel ApplicationUpdates { get; }
     public NavigationItem[] Pages { get; }=[new("Dashboard","\uE80F","Your server at a glance"),new("Battlegroup & Maps","\uE8B7","Instances, allocation and resource controls"),new("Server Configuration","\uE713","Review, edit and safely save game settings"),new("Backups","\uE896","Database artifacts and configuration recovery"),new("Logs & Diagnostics","\uE9D9","Find the cause, keep the evidence"),new("Tools & Settings","\uE115","Connections, preferences and advanced tools")];
     private int selectedPage;
     public int SelectedPage { get=>selectedPage;set{if(Set(ref selectedPage,value)){OnPropertyChanged(nameof(PageTitle));OnPropertyChanged(nameof(PageSubtitle));}} }
     public string PageTitle=>Pages[Math.Clamp(SelectedPage,0,5)].Title;
     public string PageSubtitle=>Pages[Math.Clamp(SelectedPage,0,5)].Subtitle;
     private bool demo;
-    public bool IsDemo { get=>demo;set { if(!CanOperate||value==demo)return;if(Editor.IsDirty&&!ui.Confirm("Discard configuration draft?","Switching Live/Demo discards the unsaved draft.")){OnPropertyChanged();return;}demo=value;Gateway=CreateGateway(value);ResetMonitoring();Editor.Clear();Maps.Clear();Backups.Clear();LogText="";OnPropertyChanged();OnPropertyChanged(nameof(ModeLabel));_=RefreshAsync(); } }
+    public bool IsDemo { get=>demo;set { if(!CanOperate||value==demo)return;if(Editor.IsDirty&&!ui.Confirm("Discard configuration draft?","Switching Live/Demo discards the unsaved draft.")){OnPropertyChanged();return;}demo=value;Gateway=CreateGateway(value);ApplicationUpdates.SetMode(value);ResetMonitoring();Editor.Clear();Maps.Clear();Backups.Clear();LogText="";OnPropertyChanged();OnPropertyChanged(nameof(ModeLabel));_=RefreshAsync(); } }
     public string ModeLabel=>IsDemo?"DEMO · simulated infrastructure":"LIVE · existing server";
     public DemoScenario[] DemoScenarios=>Enum.GetValues<DemoScenario>();
     public DemoScenario DemoScenario { get=>Gateway is SimulatedServerGateway s?s.Scenario:DemoScenario.Running;set{if(CanOperate&&Gateway is SimulatedServerGateway s&&s.Scenario!=value){s.Scenario=value;OnPropertyChanged();_=RefreshAsync();}} }
@@ -218,5 +219,5 @@ public sealed partial class ShellViewModel : Bindable,IDisposable
         await RunAsync("Export diagnostic bundle",true,async t=>{Directory.CreateDirectory(EffectivePreferences.LogDirectory);var stage=Path.Combine(EffectivePreferences.LogDirectory,"bundle-"+DateTime.Now.ToString("yyyyMMdd-HHmmss"));Directory.CreateDirectory(stage);await File.WriteAllTextAsync(Path.Combine(stage,"status.json"),Redactor.Clean(JsonSerializer.Serialize(Snapshot,new JsonSerializerOptions{WriteIndented=true})),t);await File.WriteAllTextAsync(Path.Combine(stage,"operations.txt"),Redactor.Clean(string.Join("\n",History.Select(h=>$"{h.Timestamp:u} {h.Name} [{h.Outcome}] {h.Output}"))),t);foreach(var action in new[]{ServerAction.ExportBattlegroupLogs,ServerAction.ExportOperatorLogs}){var result=await Gateway.ExecuteAsync(action,null,new Progress<string>(s=>OperationOutput=Redactor.Clean(OperationOutput+s)),t);if(result.Artifact!=null&&File.Exists(result.Artifact))File.Copy(result.Artifact,Path.Combine(stage,Path.GetFileName(result.Artifact)));}var zip=stage+".zip";ZipFile.CreateFromDirectory(stage,zip);return "Verified local diagnostic bundle: "+zip+"\nOfficial archives are retained intact and can contain sensitive logs.";});
     }
     private void OpenFolder(string path){try{Directory.CreateDirectory(path);ui.Open(path);}catch(Exception e){StatusMessage=e.Message;}}
-    public void Dispose(){timer.Stop();active?.Cancel();}
+    public void Dispose(){timer.Stop();active?.Cancel();ApplicationUpdates.Dispose();}
 }

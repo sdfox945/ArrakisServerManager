@@ -8,6 +8,11 @@ public sealed class LocalStores(string root) : IPreferencesStore,IHistoryStore
 {
     private readonly object sync=new();
     public string Root { get; }=root;
+    public void SaveAutomaticApplicationUpdateChecks(bool enabled)
+    {
+        // Persist only this preference, not unrelated unsaved connection-form edits.
+        lock(sync){var saved=Load();saved.AutomaticallyCheckApplicationUpdates=enabled;Save(saved);}
+    }
     private static readonly JsonSerializerOptions Json=new(){WriteIndented=true,NumberHandling=JsonNumberHandling.AllowNamedFloatingPointLiterals};
     public Preferences Load() { try { return JsonSerializer.Deserialize<Preferences>(File.ReadAllText(Path.Combine(Root,"preferences.json")),Json)??new(); }catch(Exception e)when(e is IOException or JsonException or UnauthorizedAccessException){return new();} }
     public void Save(Preferences p) { var errors=p.Validate().ToArray();if(errors.Length>0)throw new InvalidOperationException(string.Join("\n",errors));Directory.CreateDirectory(Root);var path=Path.Combine(Root,"preferences.json");File.WriteAllText(path+".tmp",JsonSerializer.Serialize(p,Json));File.Move(path+".tmp",path,true); }

@@ -6,6 +6,7 @@ namespace Arrakis.Core;
 
 public sealed class Preferences
 {
+    public bool AutomaticallyCheckApplicationUpdates { get; set; } = true;
     public string InstallationDirectory { get; set; } = @"C:\Program Files (x86)\Steam\steamapps\common\Dune Awakening Self-Hosted Server";
     public string VmName { get; set; } = "dune-awakening";
     public string SshKeyPath { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DuneAwakeningServer", "sshKey");

@@ -9,11 +9,13 @@ namespace Arrakis.Desktop;
 public partial class MainWindow : Window
 {
     public MainWindow(){InitializeComponent();}
+    private void ApplicationUpdateClicked(object sender,RoutedEventArgs e)=>new ApplicationUpdateWindow(((ShellViewModel)DataContext).ApplicationUpdates){Owner=this}.ShowDialog();
     public void Configure(LocalStores store,ShellViewModel vm,bool autoRefresh=true)
     {
         var p=vm.Preferences;Width=Math.Clamp(p.WindowWidth,1040,SystemParameters.VirtualScreenWidth);Height=Math.Clamp(p.WindowHeight,700,SystemParameters.VirtualScreenHeight);
         if(double.IsFinite(p.WindowLeft)&&double.IsFinite(p.WindowTop)&&p.WindowLeft+100>SystemParameters.VirtualScreenLeft&&p.WindowLeft<SystemParameters.VirtualScreenLeft+SystemParameters.VirtualScreenWidth-100&&p.WindowTop+100>SystemParameters.VirtualScreenTop&&p.WindowTop<SystemParameters.VirtualScreenTop+SystemParameters.VirtualScreenHeight-100){WindowStartupLocation=WindowStartupLocation.Manual;Left=p.WindowLeft;Top=p.WindowTop;}
         if(p.Maximized)WindowState=WindowState.Maximized;
+        ContentRendered+=async(_,_)=>await vm.ApplicationUpdates.InitializeAsync();
         if(!autoRefresh)return;
         if(autoRefresh)Loaded+=async(_,_)=>await vm.InitializeAsync();
         Closing+=(_,e)=>{if(vm.IsBusy){e.Cancel=true;MessageBox.Show(this,"An operation is running. Wait for it to finish, or cancel a read-only operation before closing.","Operation in progress",MessageBoxButton.OK,MessageBoxImage.Information);return;}if(vm.Editor.IsDirty&&MessageBox.Show(this,"Discard the unsaved configuration draft and close?","Unsaved changes",MessageBoxButton.YesNo,MessageBoxImage.Warning,MessageBoxResult.No)!=MessageBoxResult.Yes){e.Cancel=true;return;}p.Maximized=WindowState==WindowState.Maximized;p.WindowWidth=RestoreBounds.Width;p.WindowHeight=RestoreBounds.Height;p.WindowLeft=RestoreBounds.Left;p.WindowTop=RestoreBounds.Top;try{store.Save(p);}catch(Exception ex){MessageBox.Show(this,ex.Message,"Could not save preferences");}vm.Dispose();};

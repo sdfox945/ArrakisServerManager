@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0
+
+- Refine the update dialog with a fixed version/status summary and operation/actions area, a single release-information scroller, contextual canceled/failed/verified actions and collapsed installation help. Preserve the accepted downloader/security services and archive the prior candidate before replacement.
+- Add independent Arrakis application-update checks through the anonymous official GitHub Releases API, dynamic assembly version display, a compact clickable footer and a dedicated plaintext details dialog.
+- Add 24-hour successful-result caching, an automatic-check preference and forced manual checks without coupling to Funcom updates or server operation guards.
+- Add bounded HTTPS streaming, restricted redirects, progress/cancellation, exact asset SHA-256/checksum-file verification, safe partial files and verified existing-file reuse. Installation remains entirely manual; no downloaded content is extracted or executed.
+- Add eight isolated Demo update scenarios, offline HTTP/file-integrity regressions and native WPF update workflows. Preserve all 159 prior tests and historical releases.
+
 ## 1.1.2
 
 - Correct WaterExtractionRate guidance and slider endpoints: higher values make extraction faster; lower values make it slower. This follows user-reported gameplay observations contradicting Funcom's supplied template comment, without independent gameplay verification.

@@ -29,6 +29,8 @@ coverage/
 **/preferences.json
 **/history.json
 **/safety-state.json
+**/application-update-cache.json
+*.partial
 **/unhandled-error.txt
 *.log
 *.trace

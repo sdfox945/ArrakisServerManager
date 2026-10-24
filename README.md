@@ -2,7 +2,9 @@
 
 A native Windows desktop control center for an **existing official Dune: Awakening self-hosted server**. Monitor your Windows host, Hyper-V guest and battlegroup, review configuration changes, and manage supported administrative workflows from one WPF application.
 
-**Version v1.1.2 · Windows x64 · .NET 10**
+**Version v1.2.0 · Windows x64 · .NET 10**
+
+v1.2.0 adds independent GitHub checks and SHA-256-verified downloads for **Arrakis itself**, with a dynamic sidebar version, release-details dialog and automatic-check preference. The refined dialog keeps version/status and download progress/actions fixed, uses one release-information scroller and collapses installation help. Canceled, failed and verified states have explicit messages and contextual actions. Installation remains manual. These controls do not apply Funcom game-server updates. See [Application updates](docs/APPLICATION-UPDATES.md) and [v1.2.0 acceptance](docs/RELEASE-v1.2.0.md). The accepted v1.2.0 source is finalized locally; GitHub publication requires separate approval. The public v1.1.2 assets remain unchanged until publication.
 
 v1.1.2 corrects `WaterExtractionRate`: **higher = faster water extraction; lower = slower**. This follows user-reported gameplay observations that contradict Funcom's supplied template comment; the direction has not been independently verified during development. The 0.1–10 range, key, values and save behavior are unchanged. Existing server comments are preserved rather than silently rewritten. The committed/tagged v1.1.1 stable baseline remains intact; see [the correction notes](docs/RELEASE-v1.1.2.md).
 
@@ -16,6 +18,7 @@ This is an independent, unofficial community project. It is not affiliated with,
 - **Maps and infrastructure:** Game Maps, Infrastructure and All views; validated map-resource proposals; completed utility/Job handling; and Idle / On demand only when configuration explicitly supports that state.
 - **Backups and diagnostics:** verified downloads, bounded log views, current versus historical Kubernetes events, copyable error details, official-editor fallback and durable unknown-outcome recovery guidance.
 - **Isolated Demo mode:** explore the UI with simulated infrastructure before connecting to a server.
+- **Arrakis application updates:** cached anonymous GitHub stable-release checks, an opt-out setting, forced manual checks, safe plaintext notes and cancellable streaming ZIP downloads verified with the exact asset's SHA-256. No extraction, execution, elevation or automatic replacement/restart.
 
 ## Screenshots
 
@@ -27,6 +30,8 @@ These captures use simulated adapters, fixture settings and a documentation-only
 
 ![Water extraction description and explicit user-observation provenance](docs/images/water-description-demo.png)
 
+![Arrakis application-update details with an inert Demo release](docs/images/application-update-details-demo.png)
+
 ## Requirements
 
 - An x64 Windows installation supported by [.NET 10](https://learn.microsoft.com/en-us/dotnet/core/install/windows). Windows 11 with Hyper-V is the intended desktop host for the official Windows server workflow. Hyper-V availability depends on your Windows edition, hardware virtualization and existing server setup.
@@ -36,22 +41,22 @@ These captures use simulated adapters, fixture settings and a documentation-only
 - The inspected Funcom CLI/Kubernetes layout described in [Compatibility](docs/COMPATIBILITY.md). Automatic mutations are deliberately disabled when the installed CLI digest or resource schema is not recognized. This is not a universal compatibility claim.
 - A display capable of the application's 1040 × 700 minimum window in Windows logical pixels.
 
-The ZIP is self-contained: a separate .NET installation, browser, Node.js or local web service is not required to run it. The included Microsoft runtime components have separate [license terms](BUNDLED-RUNTIME-TERMS.md).
+The ZIP is self-contained: a separate .NET installation, browser, Node.js or local web service is not required to run it. The included Microsoft runtime components have separate [license terms](BUNDLED-RUNTIME-TERMS.md). Application-update checks need ordinary anonymous HTTPS access to GitHub; they do not require a Dune connection, Hyper-V permissions, elevation or a GitHub account/token. Offline failure leaves normal administration available.
 
 ## Download and install
 
-1. Open [Releases](https://github.com/sdfox945/ArrakisServerManager/releases) and download **ArrakisServerManager-v1.1.2-win-x64.zip** and **SHA256SUMS.txt**. GitHub's automatically generated source archives are source code, not the runnable application.
-2. In PowerShell, run `Get-FileHash .\ArrakisServerManager-v1.1.2-win-x64.zip -Algorithm SHA256` and compare the complete hash with SHA256SUMS.txt from the same release. A checksum detects a changed download; it is not a code signature.
+1. Published builds are on [Releases](https://github.com/sdfox945/ArrakisServerManager/releases). The prepared v1.2.0 ZIP/checksum are under `artifacts/release/packages-v1.2.0-final`; download **ArrakisServerManager-v1.2.0-win-x64.zip** and **SHA256SUMS.txt** from its release once published. The public v1.1.2 assets remain unchanged. GitHub's source archives are not runnable applications.
+2. Run `Get-FileHash .\ArrakisServerManager-v1.2.0-win-x64.zip -Algorithm SHA256` and compare the complete hash with its SHA256SUMS.txt. Use checksums from the same release. A checksum detects changed bytes; it is not an independently authenticated software signature.
 3. Extract the entire ZIP into a local folder. Keep the executable, adjacent DLLs, launchers, documentation and licenses together. Do not run the executable from inside the ZIP or copy only the EXE.
 4. Read [LICENSE](LICENSE), [bundled runtime terms](BUNDLED-RUNTIME-TERMS.md) and [acceptance limitations](docs/ACCEPTANCE-v1.1.1.md). Launch **Launch Demo.cmd** first; Demo uses isolated simulated infrastructure and needs no elevation.
 5. For Live mode, launch **ArrakisServerManager.exe**, or use **Launch as Administrator.cmd** when your Hyper-V workflow requires elevation. The administrator launcher requests Windows UAC; approve only if you intend to run this application elevated. A different Windows account has different preferences, keys and DPAPI-protected backups.
 6. Check the detected installation/VM, existing SSH key and IP address in **Tools & Settings**. Save connection changes before refreshing. Review a new host fingerprint against the VM console or another trusted source. Changed host identities fail closed; do not bypass host verification.
 
-The executable is unsigned. Windows may show a publisher/reputation warning; verify the source and download before deciding whether to run it. There is no installer, Windows service or automatic application updater. Keep an earlier release folder if you need to return to it.
+The executable is unsigned. Windows may show a publisher/reputation warning; verify the source and download before deciding whether to run it. The built-in application checker/downloader does not install or run anything. Close Arrakis yourself, extract the complete ZIP into a new/chosen folder and launch it yourself. Keep adjacent files and the existing application-data preferences/history/safety state. There is no installer, Windows service or unattended self-updater. Keep an earlier release folder if needed.
 
 ## Operational safety and acceptance
 
-The user accepted the live UI and configuration preview for v1.1.1. The earlier v1.0.2 configuration-save workflow also received user-confirmed live acceptance. v1.1.2 retains those 154 automated tests and adds five correction regressions, including two native WPF workflows (159 tests / 29 native workflows overall). This correction does not add independent gameplay or disruptive-operation verification. Mutation scenarios use simulated gateways, temporary files or isolated BusyBox containers.
+The user accepted the live UI/configuration preview for v1.1.1, the earlier v1.0.2 save workflow, the v1.1.2 water-guidance correction and v1.2.0 update detection/cancellation/verified-download behavior. The final dialog refinement retains all 243 existing tests and adds 13 native UX regressions, for 256 tests / 58 native WPF workflows overall. Downloads use mocked HTTP and isolated files; mutation scenarios use simulated gateways or private BusyBox containers. This does not add independent gameplay or disruptive-operation verification.
 
 **VM graceful shutdown/startup, battlegroup lifecycle transitions, individual map-resource modifications/reconciliation, database restore, server updates and other unexercised disruptive operations still require separate live acceptance.** Passing simulations or reviewing a preview does not establish that these operations succeeded on a live server. Physical multi-monitor DPI transitions and UAC behavior also require manual acceptance on the target machine.
 
@@ -70,7 +75,7 @@ If an operation reports an **unknown outcome**, further mutations are blocked. I
 | Backup shown as unverified | Inspect the size/hash receipt and verify a local copy. A configuration backup is not a database backup. |
 | Window or controls do not fit | Use at least the minimum logical window size; check Windows scaling. See the target-machine acceptance limits above. |
 
-Preferences, operation history, SSH host pins and encrypted configuration backups are stored under `%LOCALAPPDATA%\ArrakisServerManager`; the Demo launcher uses its separate `Demo-v1.1.2` directory. Private keys are referenced, not copied into the release. The application does not upload diagnostics automatically. Official log bundles and backups can contain secrets or player data: review and redact them before sharing. Microsoft runtime crash reporting is governed by its separate terms and Windows settings.
+Preferences, operation history, SSH host pins and encrypted configuration backups are stored under `%LOCALAPPDATA%\ArrakisServerManager`; the Demo launcher uses its separate `Demo-v1.2.0` directory. Application updates use a separate `Downloads` folder and `application-update-cache.json`. Automatic GitHub checks default on, cache successes for 24 hours and can be disabled in Tools; manual checks remain available. Only ordinary release API/asset requests are made—no SSH keys, credentials, server settings or VM details are sent. Demo update scenarios use simulated HTTP and inert ZIP fixtures, never real GitHub requests. Private keys are referenced, not bundled. The app does not upload diagnostics automatically; review exported logs/backups before sharing. Microsoft runtime crash reporting has separate terms/Windows settings.
 
 Report reproducible problems through [GitHub Issues](https://github.com/sdfox945/ArrakisServerManager/issues), using Demo/sanitized data where possible. Include the application version and concise operation/error details. Never attach SSH keys, service tokens, passwords, production INI files, databases or unreviewed log archives to a public issue.
 
@@ -85,7 +90,7 @@ docker pull busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a0
 
 The default suite uses isolated test adapters and containers. `--live-read-only` is a separate, opt-in probe and is not part of that suite. Native tests need an interactive Windows desktop; keyboard/focus-sensitive checks can be affected by concurrent desktop interaction. Tests and screenshots are written under ignored `artifacts/`.
 
-For a new local self-contained build, run `.\scripts\build.ps1 -Publish`; run `.\scripts\test-ui.ps1` for the native six-page Demo smoke. Publication builds a local output folder and does not upload it. That build script is a development publisher; the public ZIP additionally includes the licenses and runtime terms listed in [Third-party notices](THIRD_PARTY_NOTICES.md). Run the five correction tests alone with `dotnet run --project tests/Arrakis.Tests -c Release -- --correction`. See [Testing](docs/TESTING.md), [Architecture](docs/ARCHITECTURE.md), [v1.1.0 enhancements](docs/RELEASE-v1.1.0.md), [v1.1.1 stabilization](docs/RELEASE-v1.1.1.md), [v1.1.2 correction](docs/RELEASE-v1.1.2.md) and [Changelog](CHANGELOG.md).
+For a local self-contained build, run `.\scripts\build.ps1 -Publish`, then `.\scripts\test-ui.ps1` for six pages plus the Demo update dialog/download smoke. `.\scripts\package.ps1` produces the local ZIP, full per-file manifest and SHA256SUMS.txt; it refuses to overwrite an existing package. These commands never upload anything. Runtime/license notices are included. The new offline updater subset is `dotnet run --project tests/Arrakis.Tests -c Release -- --application-updates`; the existing `--correction`, `--stabilization`, `--enhancements` and `--editor-native` subsets remain. See [Testing](docs/TESTING.md), [Architecture](docs/ARCHITECTURE.md), [Application updates](docs/APPLICATION-UPDATES.md), historical release reports and [Changelog](CHANGELOG.md).
 
 ## License and attribution
 
