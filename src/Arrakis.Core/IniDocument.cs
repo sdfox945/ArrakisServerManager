@@ -28,6 +28,7 @@ public sealed class IniDocument
         return entries;
     }
     public string? Get(string section, string key) => Entries().LastOrDefault(e => Eq(e.Section, section) && Eq(e.Key, key))?.Value;
+    public IReadOnlyList<string> Sections()=>lines.Select(l=>Regex.Match(l.Trim(),@"^\[([^\]\r\n]+)\]\s*(?:[;#].*)?$")).Where(m=>m.Success).Select(m=>m.Groups[1].Value.Trim()).ToArray();
     public void Set(string section, string key, string value)
     {
         if (new[] { section, key, value }.Any(s => s.Contains('\n') || s.Contains('\r') || s.Contains('\0')) || key.Contains('=') || section.Contains(']')) throw new ArgumentException("INI values must be single lines.");

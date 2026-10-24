@@ -43,6 +43,7 @@ public static partial class Redactor
         text = Regex.Replace(text, @"(?i)((?:password|passwd|token|secret|ServiceAuthToken|ServerLoginPassword)[\w]*[\s\""']*[:=][\s\""']*)[^\s,\""';]+", "$1[REDACTED]");
         text = Regex.Replace(text, @"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+", "[REDACTED JWT]");
         text = Regex.Replace(text, @"-----BEGIN [^-]*PRIVATE KEY-----[\s\S]*?-----END [^-]*PRIVATE KEY-----", "[REDACTED PRIVATE KEY]");
+        text = Regex.Replace(text,@"(?m)^([+−\- ]*)([A-Za-z_][\w.]*)([ \t]*=[ \t]*)[^\r\n]*",m=>SettingIdentity.Sensitive(m.Groups[2].Value)?m.Groups[1].Value+m.Groups[2].Value+m.Groups[3].Value+"[REDACTED]":m.Value);
         return text.Length > 60000 ? text[^60000..] : text;
     }
 }

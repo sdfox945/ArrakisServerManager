@@ -8,6 +8,10 @@ public sealed class LocalStores(string root) : IPreferencesStore,IHistoryStore
 {
     private readonly object sync=new();
     public string Root { get; }=root;
+    public void SaveConfigurationDetailsWidth(double width)
+    {
+        lock(sync){var saved=Load();saved.ConfigurationDetailsWidth=width;Save(saved);}
+    }
     public void SaveAutomaticApplicationUpdateChecks(bool enabled)
     {
         // Persist only this preference, not unrelated unsaved connection-form edits.

@@ -21,7 +21,7 @@ internal static partial class Program
     {
         root=Path.GetFullPath(Path.Combine("artifacts","tests",DateTime.Now.ToString("yyyyMMdd-HHmmss")+"-"+Guid.NewGuid().ToString("N")[..6]));Directory.CreateDirectory(root);
         var dispatcher=Dispatcher.CurrentDispatcher;SynchronizationContext.SetSynchronizationContext(new DispatcherSynchronizationContext(dispatcher));var exit=1;
-        dispatcher.BeginInvoke(async()=>{try{exit=args.Contains("--update-dialog-ux")?await RunUpdateDialogUx():args.Contains("--application-update-probe")?await ApplicationUpdateProbe():args.Contains("--application-updates")?await RunApplicationUpdates():args.Contains("--correction")?await RunCorrection():args.Contains("--stabilization")?await RunStabilization():args.Contains("--enhancements")?await RunEnhancements():args.Contains("--editor-native")?await RunEditorOnly():args.Contains("--live-read-only")?await LiveProbe():await Run();}catch(Exception e){Console.Error.WriteLine(e);exit=1;}finally{dispatcher.BeginInvokeShutdown(DispatcherPriority.Background);}});Dispatcher.Run();return exit;
+        dispatcher.BeginInvoke(async()=>{try{exit=args.Contains("--metadata-refinement")?await RunMetadataRefinement():args.Contains("--custom-config")?await RunCustomConfiguration():args.Contains("--update-dialog-ux")?await RunUpdateDialogUx():args.Contains("--application-update-probe")?await ApplicationUpdateProbe():args.Contains("--application-updates")?await RunApplicationUpdates():args.Contains("--correction")?await RunCorrection():args.Contains("--stabilization")?await RunStabilization():args.Contains("--enhancements")?await RunEnhancements():args.Contains("--editor-native")?await RunEditorOnly():args.Contains("--live-read-only")?await LiveProbe():await Run();}catch(Exception e){Console.Error.WriteLine(e);exit=1;}finally{dispatcher.BeginInvokeShutdown(DispatcherPriority.Background);}});Dispatcher.Run();return exit;
     }
     private static void Test(string name,Action work)=>cases.Add((name,()=>{work();return Task.CompletedTask;}));
     private static void TestAsync(string name,Func<Task> work)=>cases.Add((name,work));
@@ -97,8 +97,12 @@ internal static partial class Program
         WaterExtractionRegression.Register(TestAsync);NativeConfigurationRegression.RegisterWaterExtraction(TestAsync,root);
         ApplicationUpdateRegression.Register(TestAsync,root);NativeConfigurationRegression.RegisterApplicationUpdates(TestAsync,root);
         NativeConfigurationRegression.RegisterUpdateDialogUx(TestAsync,root);
+        CustomConfigurationRegression.Register(TestAsync,root);NativeConfigurationRegression.RegisterCustomConfiguration(TestAsync,root);
+        MetadataRefinementRegression.Register(TestAsync,root);NativeConfigurationRegression.RegisterMetadataRefinement(TestAsync,root);
         return await RunCases();
     }
+    private static async Task<int> RunMetadataRefinement(){MetadataRefinementRegression.Register(TestAsync,root);NativeConfigurationRegression.RegisterMetadataRefinement(TestAsync,root);return await RunCases();}
+    private static async Task<int> RunCustomConfiguration(){CustomConfigurationRegression.Register(TestAsync,root);NativeConfigurationRegression.RegisterCustomConfiguration(TestAsync,root);return await RunCases();}
     private static async Task<int> RunCorrection(){WaterExtractionRegression.Register(TestAsync);NativeConfigurationRegression.RegisterWaterExtraction(TestAsync,root);return await RunCases();}
     private static async Task<int> RunApplicationUpdates(){ApplicationUpdateRegression.Register(TestAsync,root);NativeConfigurationRegression.RegisterApplicationUpdates(TestAsync,root);return await RunCases();}
     private static async Task<int> RunUpdateDialogUx(){NativeConfigurationRegression.RegisterUpdateDialogUx(TestAsync,root);return await RunCases();}

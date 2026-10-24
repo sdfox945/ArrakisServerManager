@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 namespace Arrakis.Core;
 
 public sealed record ConfigurationFileChoice(string Name, string RemotePath);
-public sealed record VisualSettingChange(string Section, string Key, string Value);
+public sealed record VisualSettingChange(string Section, string Key, string Value, SettingDefinition? Validation=null);
 
 /// <summary>A loaded document owns its original bytes, draft text and explicit editing intent.</summary>
 public sealed class ConfigurationDraft
@@ -13,6 +13,7 @@ public sealed class ConfigurationDraft
     private readonly Dictionary<(string Section, string Key), VisualSettingChange> changes = [];
     private string text;
     private string? authorizedRemovalHash;
+    private CustomSettingDefinition[] definitions=[];
     public ConfigurationDraft(ConfigFile file)
     {
         original = file with { Bytes = file.Bytes.ToArray() };
@@ -25,15 +26,29 @@ public sealed class ConfigurationDraft
     public ConfigFile Original => original with { Bytes = original.Bytes.ToArray() };
     public bool HasRawEdits { get; private set; }
     public bool IsDirty => !original.Encode(text).SequenceEqual(original.Bytes);
+    public void RegisterDefinitions(IEnumerable<CustomSettingDefinition> metadata)
+    {
+        var copy=metadata.Select(d=>d with{Choices=d.Choices.ToArray()}).ToArray();
+        foreach(var item in copy)item.Validate();
+        if(copy.Select(d=>d.Identity).Distinct().Count()!=copy.Length)throw new InvalidOperationException("Duplicate metadata identities.");
+        definitions=copy;
+    }
     public void ApplyVisual(SettingDefinition setting, string value)
     {
         if (setting.File != original.Name) throw new InvalidOperationException("Setting belongs to a different configuration file.");
-        var known = SettingCatalog.All.SingleOrDefault(d => d.File == setting.File && d.Section == setting.Section && d.Key == setting.Key) ?? throw new InvalidOperationException("Unknown settings require explicit raw editing.");
+        var resolved=SettingResolver.Resolve(original.Name,text,definitions).SingleOrDefault(d=>SettingIdentity.Of(d.Definition.File,d.Definition.Section,d.Definition.Key)==SettingIdentity.Of(setting.File,setting.Section,setting.Key))??throw new InvalidOperationException("Register a validated definition before adding a new variable.");
+        if(resolved.RawOnly)throw new InvalidOperationException(resolved.Reason);
+        var known=resolved.Definition;
         var error = known.Validate(value); if (error != null) throw new InvalidOperationException(error);
+        var builtIn=SettingCatalog.All.SingleOrDefault(d=>SettingIdentity.Of(d.File,d.Section,d.Key)==SettingIdentity.Of(setting.File,setting.Section,setting.Key));
+        if(builtIn?.Validate(value) is {} builtInError)throw new InvalidOperationException(builtInError);
+        if(!SettingIdentity.Scalar(value))throw new InvalidOperationException("This value needs explicit Raw INI editing.");
         var doc = new IniDocument(text); doc.Set(setting.Section, setting.Key, value);
         var next = doc.ToString();
         if (next == text) return;
-        changes[(setting.Section, setting.Key)] = new(setting.Section, setting.Key, value);
+        var previous=changes.Keys.FirstOrDefault(k=>k.Section.Equals(setting.Section,StringComparison.OrdinalIgnoreCase)&&k.Key.Equals(setting.Key,StringComparison.OrdinalIgnoreCase));
+        var intentKey=previous!=default?previous:(setting.Section,setting.Key);
+        changes[intentKey] = new(intentKey.Section, intentKey.Key, value,known with{Section=intentKey.Section,Key=intentKey.Key,Choices=known.Choices?.ToArray()});
         text = next; Revision++; authorizedRemovalHash = null;
     }
     public void EditRaw(string value)
@@ -137,7 +152,11 @@ public static class ConfigurationIntegrity
     public static void ValidateVisual(ConfigFile original, string proposed, IEnumerable<VisualSettingChange> changes)
     {
         var replay = new IniDocument(original.Text);
-        foreach (var change in changes) replay.Set(change.Section, change.Key, change.Value);
+        foreach (var change in changes)
+        {
+            if(change.Validation is {} definition&&(definition.Validate(change.Value)!=null||!SettingIdentity.Scalar(change.Value)||definition.Section!=change.Section||definition.Key!=change.Key))throw new InvalidOperationException("Visual change no longer matches its validated definition.");
+            replay.Set(change.Section, change.Key, change.Value);
+        }
         if (!original.Encode(replay.ToString()).SequenceEqual(original.Encode(proposed))) throw new InvalidOperationException("Visual-editor integrity check failed: unrelated bytes changed. Reload and reapply only the intended settings.");
         if (!Sections(original.Text).IsSubsetOf(Sections(proposed))) throw new InvalidOperationException("Visual editing cannot remove original INI section structure.");
     }

@@ -18,6 +18,7 @@ public sealed class Preferences
     public string BackupDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Arrakis", "Backups");
     public string LogDirectory { get; set; } = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Arrakis", "Diagnostics");
     public double WindowWidth { get; set; } = 1360;
+    public double ConfigurationDetailsWidth {get;set;}=440;
     public double WindowHeight { get; set; } = 860;
     public double WindowLeft { get; set; } = double.NaN;
     public double WindowTop { get; set; } = double.NaN;

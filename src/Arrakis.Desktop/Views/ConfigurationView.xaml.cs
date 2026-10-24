@@ -11,9 +11,31 @@ namespace Arrakis.Desktop.Views;
 public partial class ConfigurationView : UserControl
 {
     private bool synchronizing, cancelPicker, pickerSession, syncQueued;
+    private bool splitInitialized;
     public ConfigurationView() { InitializeComponent(); }
     private ConfigurationViewModel? Editor => DataContext is ShellViewModel shell ? shell.Editor : DataContext as ConfigurationViewModel;
     private void SliderChosen(object sender, RoutedPropertyChangedEventArgs<double> e) => Editor?.ChooseSliderValue(e.NewValue);
+    private void InitializeSplit()
+    {
+        if(!splitInitialized&&Editor!=null&&VisualSplit.ActualWidth>=608&&VisualSplit.IsVisible){splitInitialized=true;DetailsColumn.Width=new GridLength(Math.Clamp(Editor.DetailsPaneWidth,280,Math.Max(280,VisualSplit.ActualWidth-380)));}
+    }
+    private void SplitLoaded(object sender,RoutedEventArgs e)=>Dispatcher.BeginInvoke(DispatcherPriority.Loaded,InitializeSplit);
+    private void SplitSized(object sender,SizeChangedEventArgs e){InitializeSplit();var maximum=Math.Max(280,VisualSplit.ActualWidth-380);if(splitInitialized&&VisualSplit.ActualWidth>=608&&DetailsColumn.ActualWidth>maximum)DetailsColumn.Width=new GridLength(maximum);}
+    private void SplitDragged(object sender,DragCompletedEventArgs e)=>Editor?.SavePaneWidth(DetailsColumn.ActualWidth);
+    private void DefinitionDialog(bool edit)
+    {
+        if(Editor==null)return;
+        try{var model=Editor.CreateDefinitionEditor(edit);using var lease=Editor.BeginMetadataReview();new SettingDefinitionWindow(model){Owner=Window.GetWindow(this)}.ShowDialog();}
+        catch(Exception e){Editor.Validation=e.Message;}
+    }
+    private void AddVariableClicked(object sender,RoutedEventArgs e)=>DefinitionDialog(false);
+    private void ManageClicked(object sender,RoutedEventArgs e)=>DefinitionDialog(true);
+    private void CopyKeyClicked(object sender,RoutedEventArgs e)=>Editor?.CopyKey();
+    private void RemoveClicked(object sender,RoutedEventArgs e)=>Editor?.RemoveDefinition();
+    private void ImportClicked(object sender,RoutedEventArgs e)=>Editor?.ImportDefinitions();
+    private void ExportClicked(object sender,RoutedEventArgs e)=>Editor?.ExportDefinitions();
+    private void ReloadMetadataClicked(object sender,RoutedEventArgs e)=>Editor?.ReloadMetadata();
+    private void DemoDefinitionsClicked(object sender,RoutedEventArgs e)=>Editor?.LoadDemoDefinitions();
     private void SyncPicker()
     {
         if (synchronizing || FilePicker == null) return;

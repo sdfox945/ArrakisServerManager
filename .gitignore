@@ -30,6 +30,8 @@ coverage/
 **/history.json
 **/safety-state.json
 **/application-update-cache.json
+**/CustomSettings/
+*.damaged-*
 *.partial
 **/unhandled-error.txt
 *.log

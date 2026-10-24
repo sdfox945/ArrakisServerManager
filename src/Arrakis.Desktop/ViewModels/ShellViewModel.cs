@@ -24,7 +24,7 @@ public sealed partial class ShellViewModel : Bindable,IDisposable
         Gateway=CreateGateway(demo);this.demo=demo;Snapshot=ServerSnapshot.Empty(Preferences.VmName);ApplicationUpdates=new(ui,stores,Preferences,demo,applicationUpdateFactory);
         MapsView=CollectionViewSource.GetDefaultView(Maps);MapsView.Filter=o=>o is MapInstance m&&($"{m.Map} {m.Pod} {m.State} {m.Error}".Contains(MapSearch,StringComparison.OrdinalIgnoreCase))&&(MapFilter=="All states"||m.State.Contains(MapFilter,StringComparison.OrdinalIgnoreCase))&&(MapMode=="All"||m.Workload==(MapMode=="Game Maps"?WorkloadKind.GameMap:WorkloadKind.Infrastructure));
         BackupsView=CollectionViewSource.GetDefaultView(Backups);BackupsView.Filter=o=>o is BackupArtifact a&&(BackupCategory=="All categories"||a.Category==BackupCategory);
-        Editor=new(this,ui);
+        Editor=new(this,ui,stores);
         PropertyChanged+=(_,e)=>{if(e.PropertyName==nameof(CanOperate)){OnPropertyChanged(nameof(CanEditMapResources));OnPropertyChanged(nameof(CanApplyMap));}};
         RefreshCommand=new AsyncCommand(()=>RefreshAsync(),()=>CanOperate);
         CancelCommand=new RelayCommand(()=>{LiveLogs=false;active?.Cancel();},()=>CanCancel);

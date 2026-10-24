@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.0
+
+- Refine metadata examples/defaults, separate user/verified-engine default actions, make reset proposal-only, provide conditional type fields and field-specific live validation, preserve schema 1 compatibility and existing candidate recovery.
+
+- Discover active scalar settings from all three supported INIs without requiring new hardcoded catalog entries; preserve unknown text and mark ambiguous/complex/sensitive entries raw-only.
+- Add guided Add Variable, local definition management, custom names/categories/types/bounds/notes, reviewed metadata import/export and atomic versioned storage with recovery and Demo isolation.
+- Add readable names, source-aware dynamic search/categories and a wider, persisted GridSplitter details pane; retain exact typed proposals and synchronized Raw/Visual editing.
+- Extend vetted visual intentions while preserving original bytes, protected entries, review/payload identity and all remote-save/unknown-outcome safeguards. Strengthen full-line secret masking without changing INI bytes.
+- Retain the complete v1.2.0 updater/server regression suite and add isolated core/native custom-configuration workflows. Production mutation is not part of release validation; GitHub publication requires separate approval.
+
 ## 1.2.0
 
 - Refine the update dialog with a fixed version/status summary and operation/actions area, a single release-information scroller, contextual canceled/failed/verified actions and collapsed installation help. Preserve the accepted downloader/security services and archive the prior candidate before replacement.

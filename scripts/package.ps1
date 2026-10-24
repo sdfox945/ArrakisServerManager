@@ -16,7 +16,7 @@ New-Item -ItemType Directory -Path $stage -Force|Out-Null
 foreach($file in Get-ChildItem -LiteralPath $release -Recurse -File){
  $relative=[IO.Path]::GetRelativePath($release,$file.FullName)
  if($file.Extension -eq '.pdb'){continue}
- if($relative -match '(?i)\.(ini|key|pem|pfx|p12|log|trace|db|backup|bak|partial|pak|uasset|ucas|utoc)$' -or $relative -match '(?i)(preferences|history|safety-state|application-update-cache)\.json$'){throw ('Runtime/private file refused: '+$relative)}
+ if($relative -match '(?i)\.(ini|key|pem|pfx|p12|log|trace|db|backup|bak|partial|pak|uasset|ucas|utoc)$' -or $relative -match '(?i)(preferences|history|safety-state|application-update-cache)\.json$|(^|[\\/])CustomSettings[\\/]|\.damaged-'){throw ('Runtime/private file refused: '+$relative)}
  $target=Join-Path $stage $relative;New-Item -ItemType Directory -Path (Split-Path -Parent $target) -Force|Out-Null;Copy-Item -LiteralPath $file.FullName -Destination $target
 }
 $manifest=Join-Path $stage 'PACKAGE-SHA256SUMS.txt'

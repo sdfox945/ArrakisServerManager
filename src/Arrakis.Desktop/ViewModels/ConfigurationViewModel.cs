@@ -9,13 +9,20 @@ namespace Arrakis.Desktop.ViewModels;
 public sealed class SettingRow(SettingDefinition definition, string? current) : Bindable
 {
     public SettingDefinition Definition { get; } = definition;
+    public string Source {get;init;}=definition.Source;
+    public bool RawOnly {get;init;}
+    public string Reason {get;init;}="";
+    public string DisplayCurrent=>SettingIdentity.Sensitive(Definition.Key)&&IsPresent?"••••••":Current;
+    public string DisplaySaved=>SettingIdentity.Sensitive(Definition.Key)&&Saved!="Not set"?"••••••":Saved;
     private string value = current ?? "Not set";
     public string Current { get => value; internal set { if(Set(ref this.value,value)){OnPropertyChanged(nameof(IsPresent));OnPropertyChanged(nameof(IsModified));OnPropertyChanged(nameof(State));} } }
     private string saved=current??"Not set";
     public string Saved {get=>saved;internal set {if(Set(ref saved,value)){OnPropertyChanged(nameof(IsModified));OnPropertyChanged(nameof(State));}}}
-    public bool IsPresent => Current != "Not set";
+    private bool present=current!=null;
+    internal void SetPresence(bool active){present=active;OnPropertyChanged(nameof(IsPresent));OnPropertyChanged(nameof(State));}
+    public bool IsPresent => present;
     public bool IsModified => Current != Saved;
-    public string State => !IsPresent ? "Available to add" : IsModified ? "Modified" : "Saved";
+    public string State => RawOnly ? "Raw only" : !IsPresent ? "Available to add" : IsModified ? "Modified" : "Saved";
 }
 
 public sealed partial class ConfigurationViewModel : Bindable
@@ -26,15 +33,16 @@ public sealed partial class ConfigurationViewModel : Bindable
     private ConfigurationDraft? document;
     private ConfigurationFileChoice? selectedFile;
     private bool transitioning;
-    public ConfigurationViewModel(ShellViewModel shell, IUserInteraction ui)
+    public ConfigurationViewModel(ShellViewModel shell, IUserInteraction ui,LocalStores stores)
     {
-        this.shell = shell; this.ui = ui;
+        this.shell = shell; this.ui = ui;this.stores=stores;metadataStore=new CustomSettingStore(stores.Root,shell.IsDemo);LoadMetadata();
         SettingsView = CollectionViewSource.GetDefaultView(Settings);
         SettingsView.Filter = o => o is SettingRow s && (s.IsPresent || ShowAvailableToAdd) && (Category == "All categories" || s.Definition.Category == Category) && MatchesSearch(s);
-        shell.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(shell.CanOperate)) OnPropertyChanged(nameof(CanInteract)); };
+        shell.PropertyChanged += (_, e) => { if (e.PropertyName == nameof(shell.CanOperate)) {OnPropertyChanged(nameof(CanInteract));OnPropertyChanged(nameof(CanManageMetadata));} };
         LoadCommand = new AsyncCommand(Reload, () => CanInteract);
         ApplySettingCommand = new RelayCommand(ApplySetting, () => CanAddSetting);
-        ResetCommand = new RelayCommand(() => SettingValue = SelectedSetting!.Definition.Default!, () => CanInteract && HasVerifiedDefault);
+        ResetCommand = new RelayCommand(() => {if(CanInteract&&HasVerifiedDefault)SettingValue=SelectedSetting!.Definition.VerifiedEngineDefault!;}, () => CanInteract && HasVerifiedDefault);
+        ResetUserDefaultCommand=new RelayCommand(()=>{if(CanInteract&&HasUserDefault)SettingValue=SelectedSetting!.Definition.Default!;},()=>CanInteract&&HasUserDefault);
         UndoCommand = new RelayCommand(Undo, () => CanInteract && IsDirty);
         PreviewCommand = new RelayCommand(Preview, () => CanInteract && document != null);
         SaveCommand = new AsyncCommand(Save, () => CanInteract && IsDirty);
@@ -67,22 +75,24 @@ public sealed partial class ConfigurationViewModel : Bindable
             if(value==null&&selectedSetting!=null&&Settings.Contains(selectedSetting))return;
             if (!Set(ref selectedSetting, value)) return;
             choices = value?.Definition.Kind == "bool" ? ["True", "False"] : value?.Definition.Choices?.ToArray() ?? [];
-            SettingValue = value == null ? "" : value.Current == "Not set" ? value.Definition.TemplateValue : value.Current;
-            foreach (var p in new[] { nameof(SettingDetails), nameof(Choices), nameof(HasChoices), nameof(HasNumericValue), nameof(HasVerifiedDefault) }) OnPropertyChanged(p);
+            SettingValue = value == null||SettingIdentity.Sensitive(value.Definition.Key) ? "" : !value.IsPresent ? value.Definition.TemplateValue : value.Current;
+            foreach (var p in new[] { nameof(SettingDetails), nameof(Choices), nameof(HasChoices), nameof(HasNumericValue), nameof(HasVerifiedDefault),nameof(HasUserDefault) }) OnPropertyChanged(p);
             NotifyNumeric();
         }
     }
-    public string SettingDetails => SelectedSetting?.Definition.Details ?? "Select a setting to read its source, accepted values and restart requirements. Unknown keys remain available in the raw editor.";
+    public string SettingDetails => SelectedSetting is {} row?row.Definition.Description+"\n"+row.Definition.Direction+"\n"+row.Definition.Evidence+(row.RawOnly?"\nRAW ONLY: "+row.Reason:""):"Select a setting to read its source, accepted values and restart requirements.";
     public string[] Choices => choices;
     public bool HasChoices => choices.Length > 0;
     public bool HasNumericValue => !HasChoices;
-    public bool HasVerifiedDefault => SelectedSetting?.Definition.Default != null;
+    public bool HasVerifiedDefault => SelectedSetting is {RawOnly:false} row&&!string.IsNullOrWhiteSpace(row.Definition.VerifiedEngineDefault);
+    public bool HasUserDefault=>SelectedSetting is {RawOnly:false} row&&row.Definition.Source=="Custom"&&!string.IsNullOrWhiteSpace(row.Definition.Default);
     // An inactive choice ComboBox may clear its selection while its ItemsSource changes.
     // Null is not editing intent; an actual empty TextBox value remains a valid validation request.
     public string SettingValue { get => settingValue; set {if(value!=null&&Set(ref settingValue, value))NotifyNumeric();} }
     public string Validation { get => validation; set => Set(ref validation, value); }
     public RelayCommand ApplySettingCommand { get; }
     public RelayCommand ResetCommand { get; }
+    public RelayCommand ResetUserDefaultCommand {get;}
     public RelayCommand UndoCommand { get; }
     public RelayCommand PreviewCommand { get; }
     public RelayCommand RestoreCommand { get; }
@@ -109,7 +119,7 @@ public sealed partial class ConfigurationViewModel : Bindable
     {
         if (!CanInteract || document == null) return;
         document.EditRaw(text); Changed(); UpdateValues();
-        if (SelectedSetting != null) SettingValue = SelectedSetting.Current == "Not set" ? SelectedSetting.Definition.TemplateValue : SelectedSetting.Current;
+        if (SelectedSetting != null) SettingValue = SettingIdentity.Sensitive(SelectedSetting.Definition.Key)?"":!SelectedSetting.IsPresent ? SelectedSetting.Definition.TemplateValue : SelectedSetting.Current;
     }
     private async Task Reload()
     {
@@ -138,15 +148,19 @@ public sealed partial class ConfigurationViewModel : Bindable
     private void Adopt(ConfigurationFileChoice choice, ConfigFile snapshot)
     {
         document = new(snapshot); selectedFile = choice;
-        Settings.Clear(); foreach (var d in SettingCatalog.All.Where(d => d.File == choice.Name)) Settings.Add(new(d, null));
+        document.RegisterDefinitions(customDefinitions);
         UpdateValues(); SelectedSetting = Settings.FirstOrDefault(); Validation = "";
         OnPropertyChanged(nameof(SelectedFile)); OnPropertyChanged(nameof(FilePath)); OnPropertyChanged(nameof(FileCaption)); Changed();
     }
     private void UpdateValues()
     {
-        var entries = new IniDocument(RawText).Entries().GroupBy(e => (e.Section.ToUpperInvariant(), e.Key.ToUpperInvariant())).ToDictionary(g => g.Key, g => g.Last().Value);
-        var saved = new IniDocument(document?.Original.Text ?? "");
-        foreach (var row in Settings) {row.Saved=saved.Get(row.Definition.Section,row.Definition.Key)??"Not set";row.Current = entries.GetValueOrDefault((row.Definition.Section.ToUpperInvariant(), row.Definition.Key.ToUpperInvariant())) ?? "Not set";}
+        if(document==null)return;
+        var previous=selectedSetting==null?null:SettingIdentity.Of(selectedSetting.Definition.File,selectedSetting.Definition.Section,selectedSetting.Definition.Key);
+        var resolved=SettingResolver.Resolve(document.Original.Name,RawText,customDefinitions);
+        var entries = new IniDocument(RawText).Entries().GroupBy(e => SettingIdentity.Of(document.Original.Name,e.Section,e.Key)).ToDictionary(g => g.Key, g => g.Count()==1?g.Single().Value:"Multiple directives — Raw only");
+        var saved = new IniDocument(document.Original.Text).Entries().GroupBy(e=>SettingIdentity.Of(document.Original.Name,e.Section,e.Key)).ToDictionary(g=>g.Key,g=>g.Count()==1?g.Single().Value:"Multiple directives — Raw only");
+        Settings.Clear();foreach(var item in resolved){var row=new SettingRow(item.Definition,null){Source=item.Source,RawOnly=item.RawOnly,Reason=item.Reason};var identity=SettingIdentity.Of(row.Definition.File,row.Definition.Section,row.Definition.Key);row.Saved=saved.GetValueOrDefault(identity)??"Not set";row.Current=entries.GetValueOrDefault(identity)??"Not set";row.SetPresence(item.IsPresent);Settings.Add(row);}
+        SelectedSetting=Settings.FirstOrDefault(s=>SettingIdentity.Of(s.Definition.File,s.Definition.Section,s.Definition.Key)==previous)??Settings.FirstOrDefault();
         RebuildCategories(); NotifyNumeric();
     }
     private void ApplySetting()
@@ -196,7 +210,7 @@ public sealed partial class ConfigurationViewModel : Bindable
                 if (!review.Matches(review.Original, saved.Bytes) || saved.Name != choice.Name || saved.RemotePath != choice.RemotePath || saved.Hash != ConfigurationIntegrity.Hash(saved.Bytes)) throw new OutcomeUnknownException("Save service returned a different document or payload. Reload and reconcile before retrying.");
                 // Stable picker choices are never replaced on save; only the document snapshot advances.
                 snapshots[choice.RemotePath] = saved with { Bytes = saved.Bytes.ToArray() };
-                document = new(saved); UpdateValues(); Changed(); Validation = "Saved and verified. Restart the battlegroup when ready.";
+                document = new(saved);document.RegisterDefinitions(customDefinitions); UpdateValues(); Changed(); Validation = "Saved and verified. Restart the battlegroup when ready.";
                 return Validation;
             });
         }
@@ -222,8 +236,9 @@ public sealed partial class ConfigurationViewModel : Bindable
     {
         if (transitioning) return;
         document = null; selectedFile = null; snapshots.Clear(); Files.Clear(); Settings.Clear(); SelectedSetting = null; Validation = "";
+        metadataStore=new CustomSettingStore(stores.Root,shell.IsDemo);LoadMetadata();
         RebuildCategories();OnPropertyChanged(nameof(SelectedFile)); OnPropertyChanged(nameof(FilePath));OnPropertyChanged(nameof(FileCaption)); Changed();
     }
-    private void Changed() { foreach (var p in new[] { nameof(RawText), nameof(CurrentOriginal), nameof(DocumentId), nameof(IsDirty), nameof(DraftState) }) OnPropertyChanged(p); System.Windows.Input.CommandManager.InvalidateRequerySuggested(); }
-    private void Transition(bool active) { transitioning = active; OnPropertyChanged(nameof(CanInteract)); System.Windows.Input.CommandManager.InvalidateRequerySuggested(); }
+    private void Changed() { foreach (var p in new[] { nameof(RawText), nameof(CurrentOriginal), nameof(DocumentId), nameof(IsDirty), nameof(DraftState),nameof(CanManageMetadata),nameof(SectionNames),nameof(CategoryNames),nameof(IsDemoCatalog) }) OnPropertyChanged(p); System.Windows.Input.CommandManager.InvalidateRequerySuggested(); }
+    private void Transition(bool active) { transitioning = active; OnPropertyChanged(nameof(CanInteract));OnPropertyChanged(nameof(CanManageMetadata)); System.Windows.Input.CommandManager.InvalidateRequerySuggested(); }
 }

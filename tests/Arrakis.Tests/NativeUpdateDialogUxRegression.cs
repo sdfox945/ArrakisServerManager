@@ -19,7 +19,7 @@ internal static partial class NativeConfigurationRegression
 {
     public static void RegisterUpdateDialogUx(Action<string,Func<Task>> add,string root)
     {
-        foreach(var (version,message) in new[]{("1.2.0","You're running the latest stable version."),("1.1.2","You're running a newer version than the latest published stable release.")})
+        foreach(var (version,message) in new[]{("1.3.0","You're running the latest stable version."),("1.1.2","You're running a newer version than the latest published stable release.")})
             add("Native update dialog UX: compact version comparison "+version,async()=>
             {
                 using var c=await UpdateContext.Create(root,"ux-compact-"+version);c.Http.Json=ApplicationUpdateRegression.Metadata(version);await c.Updates.CheckAsync(true);var dialog=OpenUpdateDialog(c);
@@ -30,7 +30,7 @@ internal static partial class NativeConfigurationRegression
         add("Native update dialog UX: offline status preserves installed version and copyable diagnostics",async()=>
         {
             using var c=await UpdateContext.Create(root,"ux-offline");c.Http.Reply=(_,_)=>Task.FromResult(new HttpResponseMessage(HttpStatusCode.ServiceUnavailable));await c.Updates.CheckAsync(true);var dialog=OpenUpdateDialog(c);
-            Check(c.Updates.SummaryStatus=="Unable to check for updates. Your installed application remains available."&&!c.Updates.SummaryStatus.Contains("latest stable"),"A failed check cannot become up-to-date.");Check(((TextBlock)dialog.FindName("AvailabilityStatus")).Text==c.Updates.SummaryStatus&&c.Updates.InstalledCaption.StartsWith("v1.2.0"),"Installed version and failure must remain in the fixed summary.");
+            Check(c.Updates.SummaryStatus=="Unable to check for updates. Your installed application remains available."&&!c.Updates.SummaryStatus.Contains("latest stable"),"A failed check cannot become up-to-date.");Check(((TextBlock)dialog.FindName("AvailabilityStatus")).Text==c.Updates.SummaryStatus&&c.Updates.InstalledCaption.StartsWith("v1.3.0"),"Installed version and failure must remain in the fixed summary.");
             Check(!UxElement(dialog,"DownloadArea").IsVisible&&c.Updates.HasDiagnostics,"Offline failures must not show irrelevant downloads.");var details=(Expander)dialog.FindName("DiagnosticsHelp");details.IsExpanded=true;await Pump();Invoke(UpdateContext.Button(dialog,"Copy diagnostics"));await Until(()=>c.Ui.Copies.Count==1);Check(c.Ui.Copies[0].Contains("503"),"Technical error detail must remain copyable.");AssertUxBounds(dialog,"ReleaseSummary","DiagnosticsHelp","ActionArea");CaptureWindow(dialog,Path.Combine(c.Evidence,"offline.png"));dialog.Close();
         });
         add("Native update dialog UX: long plain notes scroll independently of summary and actions",async()=>

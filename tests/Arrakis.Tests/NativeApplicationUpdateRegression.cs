@@ -23,15 +23,15 @@ internal static partial class NativeConfigurationRegression
     {
         add("Native app updates: assembly version and successful equal/older checks render up to date",async()=>
         {
-            using var c=await UpdateContext.Create(root,"up-to-date");foreach(var version in new[]{"1.2.0","1.1.2"})
+            using var c=await UpdateContext.Create(root,"up-to-date");foreach(var version in new[]{"1.3.0","1.1.2"})
             {
-                c.Http.Json=ApplicationUpdateRegression.Metadata(version);await c.Updates.CheckAsync(true);Check(c.FooterText=="v1.2.0 · Up to date"&&!c.Updates.HasUpdate&&!c.Updates.DownloadCommand.CanExecute(null),"Equal/older releases must never offer a downgrade.");
+                c.Http.Json=ApplicationUpdateRegression.Metadata(version);await c.Updates.CheckAsync(true);Check(c.FooterText=="v1.3.0 · Up to date"&&!c.Updates.HasUpdate&&!c.Updates.DownloadCommand.CanExecute(null),"Equal/older releases must never offer a downgrade.");
             }
             Check(c.Updates.InstalledVersion.Core==SemanticVersion.FromAssembly(typeof(MainWindow).Assembly).Core,"Sidebar must derive from actual application assembly metadata.");await c.Capture("up-to-date.png");
         });
         add("Native app updates: newer patch minor and major releases notify without downloading",async()=>
         {
-            using var c=await UpdateContext.Create(root,"available");foreach(var version in new[]{"1.2.1","1.3.0","2.0.0"})
+            using var c=await UpdateContext.Create(root,"available");foreach(var version in new[]{"1.3.1","1.4.0","2.0.0"})
             {
                 c.Http.Json=ApplicationUpdateRegression.Metadata(version);await c.Updates.CheckAsync(true);Check(c.FooterText=="Update available · v"+version&&c.Updates.CanDownload,"Newer stable releases need a clickable notice.");
             }
@@ -39,7 +39,7 @@ internal static partial class NativeConfigurationRegression
         });
         add("Native app updates: checking and offline states never display false up-to-date",async()=>
         {
-            using var c=await UpdateContext.Create(root,"offline");var hold=new TaskCompletionSource<HttpResponseMessage>();c.Http.Reply=(_,_)=>hold.Task;var work=c.Updates.CheckAsync(true);await Pump();Check(c.FooterText=="Checking for updates…"&&c.Updates.FooterTooltip.Contains("v1.2.0"),"Checking must remain asynchronous and retain installed metadata.");hold.SetResult(new(HttpStatusCode.ServiceUnavailable));await work;await Pump();Check(c.FooterText=="v1.2.0 · Check unavailable"&&!c.Updates.StatusMessage.Contains("Up to date"),"Offline state must not pretend success.");await c.Capture("offline.png");
+            using var c=await UpdateContext.Create(root,"offline");var hold=new TaskCompletionSource<HttpResponseMessage>();c.Http.Reply=(_,_)=>hold.Task;var work=c.Updates.CheckAsync(true);await Pump();Check(c.FooterText=="Checking for updates…"&&c.Updates.FooterTooltip.Contains("v1.3.0"),"Checking must remain asynchronous and retain installed metadata.");hold.SetResult(new(HttpStatusCode.ServiceUnavailable));await work;await Pump();Check(c.FooterText=="v1.3.0 · Check unavailable"&&!c.Updates.StatusMessage.Contains("Up to date"),"Offline state must not pretend success.");await c.Capture("offline.png");
         });
         add("Native app updates: footer opens actual modal details and release notes stay inert plaintext",async()=>
         {
@@ -49,7 +49,7 @@ internal static partial class NativeConfigurationRegression
                 ApplicationUpdateWindow? dialog=null;try
                 {
                     await Until(()=>c.Window.OwnedWindows.OfType<ApplicationUpdateWindow>().Any());dialog=c.Window.OwnedWindows.OfType<ApplicationUpdateWindow>().Single();await Pump();var notes=Descendants(dialog).OfType<TextBox>().Single(t=>AutomationProperties.GetName(t)=="Application release notes");
-                    Check(notes.IsReadOnly&&notes.Text.Contains("<script>neverExecute()</script>")&&notes.Text.Contains("powershell.exe"),"Untrusted notes must be plain selectable text, not executable markup.");Check(!Descendants(dialog).Any(d=>d is WebBrowser)&&c.Ui.Opens.Count==0,"Opening details cannot execute links or commands.");Check(c.Updates.LatestVersion=="1.2.1"&&c.Updates.AssetCaption.Contains("win-x64.zip")&&c.Updates.VerificationCaption.Contains("SHA-256"),"Version/asset/verification metadata must be displayed.");CaptureWindow(dialog,Path.Combine(c.Evidence,"details-dialog.png"));Invoke(UpdateContext.Button(dialog,"View on GitHub"));await Until(()=>c.Ui.Opens.Count==1);Check(c.Ui.Opens.Single()==c.Updates.BrowserUrl.AbsoluteUri&&ApplicationUpdateSource.IsReleasePage(new(c.Ui.Opens[0])),"Only a validated official HTTPS release URL may reach the browser interaction.");inspected=true;
+                    Check(notes.IsReadOnly&&notes.Text.Contains("<script>neverExecute()</script>")&&notes.Text.Contains("powershell.exe"),"Untrusted notes must be plain selectable text, not executable markup.");Check(!Descendants(dialog).Any(d=>d is WebBrowser)&&c.Ui.Opens.Count==0,"Opening details cannot execute links or commands.");Check(c.Updates.LatestVersion=="1.3.1"&&c.Updates.AssetCaption.Contains("win-x64.zip")&&c.Updates.VerificationCaption.Contains("SHA-256"),"Version/asset/verification metadata must be displayed.");CaptureWindow(dialog,Path.Combine(c.Evidence,"details-dialog.png"));Invoke(UpdateContext.Button(dialog,"View on GitHub"));await Until(()=>c.Ui.Opens.Count==1);Check(c.Ui.Opens.Single()==c.Updates.BrowserUrl.AbsoluteUri&&ApplicationUpdateSource.IsReleasePage(new(c.Ui.Opens[0])),"Only a validated official HTTPS release URL may reach the browser interaction.");inspected=true;
                 }
                 catch(Exception e){failure=e;}
                 finally{dialog?.Close();finished.TrySetResult();}
@@ -105,7 +105,7 @@ internal static partial class NativeConfigurationRegression
         });
         add("Native app updates: mode changes discard late check results and cancel the old service",async()=>
         {
-            var held=new HeldUpdateService();var second=new SimulatedApplicationUpdateService(SemanticVersion.Parse("1.2.0"));using var c=await UpdateContext.Create(root,"mode-race",factory:demo=>demo?second:held);var work=c.Updates.CheckAsync(true);await Pump();c.Updates.SetMode(true);held.Result.SetResult(new(GitHubApplicationUpdateService.ParseRelease(ApplicationUpdateRegression.Metadata().ToJsonString()),DateTimeOffset.UtcNow,false));await work;Check(c.Updates.IsDemo&&c.Updates.Release==null&&!c.Updates.HasUpdate&&held.Disposed,"Late responses cannot poison a new mode or its cache.");c.Updates.SetMode(false);Check(!c.Updates.IsDemo,"Repeated mode changes must not cancel disposed token sources.");
+            var held=new HeldUpdateService();var second=new SimulatedApplicationUpdateService(SemanticVersion.Parse("1.3.0"));using var c=await UpdateContext.Create(root,"mode-race",factory:demo=>demo?second:held);var work=c.Updates.CheckAsync(true);await Pump();c.Updates.SetMode(true);held.Result.SetResult(new(GitHubApplicationUpdateService.ParseRelease(ApplicationUpdateRegression.Metadata().ToJsonString()),DateTimeOffset.UtcNow,false));await work;Check(c.Updates.IsDemo&&c.Updates.Release==null&&!c.Updates.HasUpdate&&held.Disposed,"Late responses cannot poison a new mode or its cache.");c.Updates.SetMode(false);Check(!c.Updates.IsDemo,"Repeated mode changes must not cancel disposed token sources.");
         });
     }
     private sealed class HeldUpdateService : IApplicationUpdateService

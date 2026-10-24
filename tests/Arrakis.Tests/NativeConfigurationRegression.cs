@@ -75,7 +75,7 @@ internal static partial class NativeConfigurationRegression
         {
             using var c=await Context.Create(root,"races");await c.Load();await c.SelectFile("UserServerCustomSettings.ini");await c.EditLoot("0.200000");var draft=c.Vm.Editor.RawText;var original=c.Vm.Editor.CurrentOriginal!;var approved=original.Encode(draft);var gateway=c.Vm.Gateway;
             c.Ui.DuringDialog=async(kind,_)=>{if(kind!="review")return;var reads=c.Gateway.RefreshCalls;await c.Vm.RefreshAsync(true);c.Vm.Editor.EditRawText("");Check(!c.Vm.Editor.RequestFileSelection(c.Vm.Editor.Files.First()),"Selection must be frozen during review.");c.Vm.IsDemo=false;Check(c.Gateway.RefreshCalls==reads&&c.Vm.Editor.RawText==draft&&ReferenceEquals(gateway,c.Vm.Gateway)&&!c.Vm.IsBusy,"Background work/connection changes must not start during review.");};
-            c.Gateway.HoldSave=new TaskCompletionSource();Invoke(c.Button("Review & save"));await Until(()=>c.Gateway.Saves.Count==1);
+            c.Gateway.HoldSave=new TaskCompletionSource();await Until(()=>c.Button("Review & save").IsEnabled);Invoke(c.Button("Review & save"));await Until(()=>c.Gateway.Saves.Count==1);
             Check(c.Vm.IsBusy&&!c.Vm.Editor.CanInteract&&c.Vm.OperationState=="Operation running","Only submitted save work should report Operation running.");c.Vm.Editor.EditRawText("");c.Vm.Editor.Clear();Check(!c.Vm.Editor.RequestFileSelection(c.Vm.Editor.Files.First()),"Selection is frozen during save.");await c.Vm.RefreshAsync(true);c.Vm.IsDemo=false;Check(c.Vm.Editor.RawText==draft&&c.Gateway.Saves[0].Payload.SequenceEqual(approved),"In-flight payload must stay exactly approved.");
             c.Gateway.HoldSave.SetResult();await Until(()=>!c.Vm.IsBusy&&c.Vm.Editor.CanInteract);Check(!c.Vm.Editor.IsDirty&&c.Vm.Editor.RawText==draft&&c.Ui.SwitchPrompts==0,"Completion cannot clear or detach the saved document.");
         });
@@ -130,6 +130,7 @@ internal static partial class NativeConfigurationRegression
     private sealed class ModalUi(string evidence):IUserInteraction
     {
         public Window Owner=null!;public List<DialogEvent> Events=[];public Queue<bool> ConfirmAnswers=[];public Queue<bool> ReviewAnswers=[];
+        public string? ChosenFile,ChosenFolder;
         public Func<string,Window,Task>? DuringDialog;
         public int SwitchPrompts=>Events.Count(e=>e.Title=="Unsaved changes");
         public bool Confirm(string title,string message)=>Show("confirm",title,message,"",ConfirmAnswers.Count==0||ConfirmAnswers.Dequeue());
@@ -142,7 +143,7 @@ internal static partial class NativeConfigurationRegression
             var result=window.ShowDialog()==true;if(error!=null)throw new InvalidOperationException("Native dialog assertion failed.",error);return result;
         }
         public void Preview(string title,string summary,string diff){}public void ShowError(string title,string summary,string details)=>throw new InvalidOperationException(summary+"\n"+details);
-        public string? ChooseFile(string title,string filter)=>null;public string? ChooseFolder(string title,string initial)=>null;public void Copy(string text){}public void Open(string path){}
+        public string? ChooseFile(string title,string filter)=>ChosenFile;public string? ChooseFolder(string title,string initial)=>ChosenFolder;public void Copy(string text){}public void Open(string path){}
     }
     private static void CaptureWindow(Window window,string path){window.UpdateLayout();var bitmap=new RenderTargetBitmap((int)window.ActualWidth,(int)window.ActualHeight,96,96,PixelFormats.Pbgra32);bitmap.Render(window);var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));using var file=File.Create(path);encoder.Save(file);}
 
@@ -153,6 +154,7 @@ internal static partial class NativeConfigurationRegression
         public ServerSnapshot Status=ServerSnapshot.Empty("isolated fixture");public bool AllowActions,FailRefresh,FailAction,FailLogs;public TaskCompletionSource? HoldRefresh,HoldLogs;public List<ServerAction> Actions=[];public List<MapChange> MapWrites=[];public string LogLines="2026-10-23T01:00:00Z [INFO] fixture ready\n2026-10-23T01:01:00Z [WARNING] fixture warning\n2026-10-23T01:02:00Z [ERROR] fixture failure\n2026-10-23T01:03:00Z [INFO] no error occurred";
         public bool IsDemo=>true;
         public ConfigFile Current(string name){var f=files[name];return f with{Bytes=f.Bytes.ToArray()};}
+        public void SeedConfiguration(string name,string text){var current=files[name];var bytes=current.Encode(text);files[name]=current with{Bytes=bytes,Hash=ConfigurationIntegrity.Hash(bytes)};}
         public async Task<ServerSnapshot> RefreshAsync(CancellationToken token){RefreshCalls++;if(HoldRefresh!=null)await HoldRefresh.Task.WaitAsync(token);if(FailRefresh)throw new IOException("Isolated refresh failure");return Status;}
         public Task<IReadOnlyList<ConfigFile>> LoadConfigurationAsync(CancellationToken token){LoadCalls++;return Task.FromResult<IReadOnlyList<ConfigFile>>(files.Values.Select(f=>Current(f.Name)).ToArray());}
         public async Task<ConfigFile> SaveConfigurationAsync(ConfigFile original,byte[] proposed,CancellationToken token){ConfigurationIntegrity.ValidateProposal(original,(original with{Bytes=proposed}).Text);if(original.Hash!=files[original.Name].Hash)throw new InvalidOperationException("Fixture conflict.");Saves.Add((original,proposed.ToArray()));if(HoldSave!=null)await HoldSave.Task;var saved=new ConfigFile(original.Name,original.RemotePath,proposed.ToArray(),ConfigurationIntegrity.Hash(proposed));files[original.Name]=saved;return Current(original.Name);}

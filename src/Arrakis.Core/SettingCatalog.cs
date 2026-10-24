@@ -3,10 +3,11 @@ using System.Text.RegularExpressions;
 
 namespace Arrakis.Core;
 
-public record SettingDefinition(string File, string Section, string Key, string Category, string Description, string TemplateValue, string Kind = "number", double? Min = null, double? Max = null, string[]? Choices = null, string Direction = "Behavior not documented; verify in game.", bool ClientRequired = false, string Evidence = "Documented in installed Funcom template", string? Default = null)
+public record SettingDefinition(string File, string Section, string Key, string Category, string Description, string TemplateValue, string Kind = "number", double? Min = null, double? Max = null, string[]? Choices = null, string Direction = "Behavior not documented; verify in game.", bool ClientRequired = false, string Evidence = "Documented in installed Funcom template", string? Default = null, string? FriendlyName=null, string Source="Built-in", string Restart="Restart required", double? Step=null, string Notes="", string BuiltInDetails="",string? BuiltInEngineDefault=null)
 {
-    public string Name => Regex.Replace(Key.Replace("m_b", "").Replace("m_", ""), "(?<=[a-z])([A-Z])", " $1");
-    public string Details => $"{Key} · {File} [{Section}]\n{Description}\n{Direction}\nAccepted range: {Min?.ToString(CultureInfo.InvariantCulture) ?? "not verified"} – {Max?.ToString(CultureInfo.InvariantCulture) ?? "not verified"}.\n{Evidence}. Engine default: {Default ?? "Unknown"}; supplied template: {TemplateValue}. Restart required." + (ClientRequired ? " ALSO requires matching client configuration. Client files are never changed by this app." : "");
+    public string? VerifiedEngineDefault=>Source=="Built-in"?Default:BuiltInEngineDefault;
+    public string Name => FriendlyName??SettingIdentity.Friendly(Key);
+    public string Details => $"{Key} · {File} [{Section}]\n{Description}\n{Direction}\nAccepted range: {Min?.ToString(CultureInfo.InvariantCulture) ?? "not verified"} – {Max?.ToString(CultureInfo.InvariantCulture) ?? "not verified"}.\n{Evidence}. "+(Source=="Built-in"?$"Verified Engine Default: {Default ?? "Unknown"}; supplied template: {TemplateValue}.":$"User Default: {Default??"Unknown"}; Example Value: {TemplateValue}.")+$" {Restart}." + (ClientRequired ? " ALSO requires matching client configuration. Client files are never changed by this app." : "")+(Notes.Length>0?"\nPersonal notes: "+Notes:"")+(BuiltInDetails.Length>0?"\n\nBuilt-in documentation (local annotations above take precedence; built-in validation still applies):\n"+BuiltInDetails:"");
     public string? Validate(string value)
     {
         if (value.Any(c => c is '\r' or '\n' or '\0')) return "Value must be a single line.";

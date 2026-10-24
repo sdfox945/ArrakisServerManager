@@ -15,7 +15,7 @@ internal static class ApplicationUpdateRegression
     internal static readonly byte[] Bytes=ZipBytes();
     internal static readonly string Hash=Convert.ToHexStringLower(SHA256.HashData(Bytes));
     internal static void Check(bool value,string message)=>ConfigurationIntegrityRegression.Check(value,message);
-    internal static JsonObject Metadata(string version="1.2.1",string? digest=null)
+    internal static JsonObject Metadata(string version="1.3.1",string? digest=null)
     {
         var tag="v"+version;var filename=ApplicationUpdateSource.AssetName(SemanticVersion.Parse(version));
         return new JsonObject
@@ -26,7 +26,7 @@ internal static class ApplicationUpdateRegression
             ["assets"]=new JsonArray(Asset(7,filename,Bytes.Length,"sha256:"+(digest??Hash),tag))
         };
     }
-    internal static JsonObject Asset(int id,string name,long size,string? digest,string tag="v1.2.1")=>new()
+    internal static JsonObject Asset(int id,string name,long size,string? digest,string tag="v1.3.1")=>new()
     {
         ["id"]=id,["name"]=name,["size"]=size,["state"]="uploaded",["digest"]=digest,
         ["url"]=$"https://api.github.com/repos/{ApplicationUpdateSource.Owner}/{ApplicationUpdateSource.Repository}/releases/assets/{id}",
@@ -76,19 +76,19 @@ internal static class ApplicationUpdateRegression
     {
         void Test(string name,Action work)=>add("App updates: "+name,()=>{work();return Task.CompletedTask;});
         void Async(string name,Func<Task> work)=>add("App updates: "+name,work);
-        Test("installed version comes from actual Desktop assembly metadata",()=>{var v=SemanticVersion.FromAssembly(typeof(Arrakis.Desktop.MainWindow).Assembly);Check(v.Core=="1.2.0","Actual application assembly version must be 1.2.0.");});
+        Test("installed version comes from actual Desktop assembly metadata",()=>{var v=SemanticVersion.FromAssembly(typeof(Arrakis.Desktop.MainWindow).Assembly);Check(v.Core=="1.3.0","Actual application assembly version must be 1.3.0.");});
         foreach(var (text,order) in new[]{("1.2.0",0),("1.2.1",1),("1.3.0",1),("2.0.0",1),("1.1.9",-1),("v1.2.0",0),("v1.2.0+build.0001",0),("1.2.0-rc.1",-1),("1.2.0-beta.11",-1),("1.10.0",1)})
             Test("semantic comparison "+text,()=>Check(Math.Sign(SemanticVersion.Parse(text).CompareTo(SemanticVersion.Parse("1.2.0")))==order,"Semantic ordering must not use lexical text ordering."));
         Test("prerelease numeric identifiers and stable precedence follow SemVer",()=>{Check(SemanticVersion.Parse("1.2.0-beta.11").CompareTo(SemanticVersion.Parse("1.2.0-beta.2"))>0,"Numeric identifiers compare numerically.");Check(SemanticVersion.Parse("1.2.0").CompareTo(SemanticVersion.Parse("1.2.0-rc.1"))>0,"Stable beats prerelease.");});
         Test("malformed or unbounded semantic versions are refused",()=>{foreach(var s in new[]{"1.2","1.2.0.1","01.2.0","1.2.0-01","1.2.0+","v../evil","1.2.0\n",new string('9',200)})Check(!SemanticVersion.TryParse(s,out _),"Malformed version accepted.");});
-        Test("stable metadata binds title date notes and exact asset identity",()=>{var r=GitHubApplicationUpdateService.ParseRelease(Metadata().ToJsonString());Check(r.Version.Core=="1.2.1"&&r.Name.Contains("Fixture")&&r.PublishedAt.Year==2026&&r.Notes.Contains("<script>")&&r.Zip.Sha256==Hash&&r.Zip.Size==Bytes.Length,"All requested release fields must be retained as data.");});
+        Test("stable metadata binds title date notes and exact asset identity",()=>{var r=GitHubApplicationUpdateService.ParseRelease(Metadata().ToJsonString());Check(r.Version.Core=="1.3.1"&&r.Name.Contains("Fixture")&&r.PublishedAt.Year==2026&&r.Notes.Contains("<script>")&&r.Zip.Sha256==Hash&&r.Zip.Size==Bytes.Length,"All requested release fields must be retained as data.");});
         foreach(var (name,mutate) in new (string,Action<JsonObject>)[]
         {
-            ("draft",j=>j["draft"]=true),("prerelease flag",j=>j["prerelease"]=true),("prerelease tag",j=>j["tag_name"]="v1.2.1-beta"),("bad version",j=>j["tag_name"]="not-a-version"),
+            ("draft",j=>j["draft"]=true),("prerelease flag",j=>j["prerelease"]=true),("prerelease tag",j=>j["tag_name"]="v1.3.1-beta"),("bad version",j=>j["tag_name"]="not-a-version"),
             ("unpublished",j=>j["published_at"]=null),("missing ZIP",j=>j["assets"]=new JsonArray()),("duplicate ZIP",j=>((JsonArray)j["assets"]!).Add(j["assets"]![0]!.DeepClone())),
-            ("wrong owner",j=>j["html_url"]="https://github.com/attacker/ArrakisServerManager/releases/tag/v1.2.1"),("HTTP asset",j=>j["assets"]![0]!["browser_download_url"]="http://github.com/sdfox945/ArrakisServerManager/releases/download/v1.2.1/x.zip"),
+            ("wrong owner",j=>j["html_url"]="https://github.com/attacker/ArrakisServerManager/releases/tag/v1.3.1"),("HTTP asset",j=>j["assets"]![0]!["browser_download_url"]="http://github.com/sdfox945/ArrakisServerManager/releases/download/v1.3.1/x.zip"),
             ("foreign asset host",j=>j["assets"]![0]!["browser_download_url"]="https://github.com.evil.invalid/x"),("asset API identity",j=>j["assets"]![0]!["url"]="https://api.github.com/repos/attacker/repo/releases/assets/7"),
-            ("unsafe filename",j=>j["assets"]![0]!["name"]="../ArrakisServerManager-v1.2.1-win-x64.zip"),("oversized asset",j=>j["assets"]![0]!["size"]=ApplicationUpdateSource.PackageLimit+1),("unuploaded asset",j=>j["assets"]![0]!["state"]="new"),("malformed digest",j=>j["assets"]![0]!["digest"]="md5:bad")
+            ("unsafe filename",j=>j["assets"]![0]!["name"]="../ArrakisServerManager-v1.3.1-win-x64.zip"),("oversized asset",j=>j["assets"]![0]!["size"]=ApplicationUpdateSource.PackageLimit+1),("unuploaded asset",j=>j["assets"]![0]!["state"]="new"),("malformed digest",j=>j["assets"]![0]!["digest"]="md5:bad")
         })Async("reject metadata: "+name,async()=>{var j=Metadata();mutate(j);await Reject<ApplicationUpdateException>(()=>Task.FromResult(GitHubApplicationUpdateService.ParseRelease(j.ToJsonString())));});
         Async("malformed JSON and bounded metadata fail without success cache",async()=>
         {
@@ -139,14 +139,14 @@ internal static class ApplicationUpdateRegression
         });
         Async("checksum-file fallback verifies the exact filename and optional checksum-asset digest",async()=>
         {
-            var j=Metadata();j["assets"]![0]!["digest"]=null;var text=Hash+"  "+ApplicationUpdateSource.AssetName(SemanticVersion.Parse("1.2.1"))+"\n";var bytes=Encoding.UTF8.GetBytes(text);((JsonArray)j["assets"]!).Add(Asset(8,"SHA256SUMS.txt",bytes.Length,"sha256:"+Convert.ToHexStringLower(SHA256.HashData(bytes))));var r=GitHubApplicationUpdateService.ParseRelease(j.ToJsonString());var h=new Handler{Reply=(q,_)=>Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK){Content=new ByteArrayContent(q.RequestUri!.AbsolutePath.EndsWith("SHA256SUMS.txt")?bytes:Bytes)})};using var s=new GitHubApplicationUpdateService(new MemoryApplicationUpdateCache(),h);Check((await s.DownloadAsync(r,DirectoryFor(root,"checksum-fallback"),null,default)).Sha256==Hash,"Fallback checksum must bind this exact ZIP.");
+            var j=Metadata();j["assets"]![0]!["digest"]=null;var text=Hash+"  "+ApplicationUpdateSource.AssetName(SemanticVersion.Parse("1.3.1"))+"\n";var bytes=Encoding.UTF8.GetBytes(text);((JsonArray)j["assets"]!).Add(Asset(8,"SHA256SUMS.txt",bytes.Length,"sha256:"+Convert.ToHexStringLower(SHA256.HashData(bytes))));var r=GitHubApplicationUpdateService.ParseRelease(j.ToJsonString());var h=new Handler{Reply=(q,_)=>Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK){Content=new ByteArrayContent(q.RequestUri!.AbsolutePath.EndsWith("SHA256SUMS.txt")?bytes:Bytes)})};using var s=new GitHubApplicationUpdateService(new MemoryApplicationUpdateCache(),h);Check((await s.DownloadAsync(r,DirectoryFor(root,"checksum-fallback"),null,default)).Sha256==Hash,"Fallback checksum must bind this exact ZIP.");
         });
-        Test("ambiguous checksums and path-prefixed entries cannot verify",()=>{var name=ApplicationUpdateSource.AssetName(SemanticVersion.Parse("1.2.1"));Check(GitHubApplicationUpdateService.ParseChecksum(Hash+"  ../"+name,name)==null,"Path-prefixed entries must not match.");Check(GitHubApplicationUpdateService.ParseChecksum(Hash+"  "+name+"\n"+Hash+"  "+name,name)==null,"Duplicate entries must fail closed.");});
+        Test("ambiguous checksums and path-prefixed entries cannot verify",()=>{var name=ApplicationUpdateSource.AssetName(SemanticVersion.Parse("1.3.1"));Check(GitHubApplicationUpdateService.ParseChecksum(Hash+"  ../"+name,name)==null,"Path-prefixed entries must not match.");Check(GitHubApplicationUpdateService.ParseChecksum(Hash+"  "+name+"\n"+Hash+"  "+name,name)==null,"Duplicate entries must fail closed.");});
         Async("bad secondary checksum content or asset digest cannot finalize a package",async()=>
         {
             foreach(var corruptDigest in new[]{false,true})
             {
-                var j=Metadata();j["assets"]![0]!["digest"]=null;var bytes=Encoding.UTF8.GetBytes(corruptDigest?Hash+"  "+ApplicationUpdateSource.AssetName(SemanticVersion.Parse("1.2.1")):"<html>not a checksum</html>");((JsonArray)j["assets"]!).Add(Asset(8,"SHA256SUMS.txt",bytes.Length,corruptDigest?"sha256:"+new string('0',64):null));var h=new Handler{Reply=(_,_)=>Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK){Content=new ByteArrayContent(bytes)})};using var s=new GitHubApplicationUpdateService(new MemoryApplicationUpdateCache(),h);var directory=DirectoryFor(root,"bad-checksum-"+corruptDigest);await Reject<ApplicationUpdateException>(()=>s.DownloadAsync(GitHubApplicationUpdateService.ParseRelease(j.ToJsonString()),directory,null,default));Check(!Directory.Exists(directory),"Unreliable checksums cannot create a completed package or output folder.");
+                var j=Metadata();j["assets"]![0]!["digest"]=null;var bytes=Encoding.UTF8.GetBytes(corruptDigest?Hash+"  "+ApplicationUpdateSource.AssetName(SemanticVersion.Parse("1.3.1")):"<html>not a checksum</html>");((JsonArray)j["assets"]!).Add(Asset(8,"SHA256SUMS.txt",bytes.Length,corruptDigest?"sha256:"+new string('0',64):null));var h=new Handler{Reply=(_,_)=>Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK){Content=new ByteArrayContent(bytes)})};using var s=new GitHubApplicationUpdateService(new MemoryApplicationUpdateCache(),h);var directory=DirectoryFor(root,"bad-checksum-"+corruptDigest);await Reject<ApplicationUpdateException>(()=>s.DownloadAsync(GitHubApplicationUpdateService.ParseRelease(j.ToJsonString()),directory,null,default));Check(!Directory.Exists(directory),"Unreliable checksums cannot create a completed package or output folder.");
             }
         });
         Async("overall download timeout is independent of idle progress",async()=>
@@ -189,7 +189,7 @@ internal static class ApplicationUpdateRegression
         {
             foreach(var p in new[]{"relative","\\\\server\\share\\updates"}){try{ApplicationDownloadPaths.Validate(p,[]);throw new Exception("Unsafe path accepted");}catch(IOException){}}
             try{ApplicationDownloadPaths.Validate(Path.Combine(root,"root-protected"),[Path.GetPathRoot(root)!]);throw new Exception("A protected drive root was bypassed.");}catch(IOException){}
-            foreach(var u in new[]{"file:///C:/Windows/notepad.exe","http://github.com/sdfox945/ArrakisServerManager/releases","https://github.com/sdfox945/ArrakisServerManager/releases/tag/v1.2.1?x=1","https://github.com/sdfox945/ArrakisServerManager/releases/tag/v1.2.1%2F.."})Check(!ApplicationUpdateSource.IsReleasePage(new(u)),"Unsafe browser URL accepted.");
+            foreach(var u in new[]{"file:///C:/Windows/notepad.exe","http://github.com/sdfox945/ArrakisServerManager/releases","https://github.com/sdfox945/ArrakisServerManager/releases/tag/v1.3.1?x=1","https://github.com/sdfox945/ArrakisServerManager/releases/tag/v1.3.1%2F.."})Check(!ApplicationUpdateSource.IsReleasePage(new(u)),"Unsafe browser URL accepted.");
         });
         Async("all eight Demo scenarios use isolated simulated release/download infrastructure",async()=>
         {

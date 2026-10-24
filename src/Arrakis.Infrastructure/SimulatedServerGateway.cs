@@ -15,7 +15,7 @@ public sealed class SimulatedServerGateway(Preferences preferences,string root) 
     private readonly Dictionary<string,ConfigFile> files=new[]{"UserGame.ini","UserEngine.ini","UserServerCustomSettings.ini"}.ToDictionary(n=>n,n=>
     {
         var builder=new StringBuilder("; Arrakis simulated configuration — no live server data\r\n");
-        foreach(var group in SettingCatalog.All.Where(d=>d.File==n).GroupBy(d=>d.Section)) { builder.AppendLine("["+group.Key+"]");foreach(var d in group)builder.AppendLine(d.Key+"="+d.TemplateValue); }
+        foreach(var group in SettingCatalog.All.Where(d=>d.File==n).GroupBy(d=>d.Section)) { builder.AppendLine("["+group.Key+"]");foreach(var d in group)builder.AppendLine(d.Key+"="+d.TemplateValue); if(n=="UserEngine.ini"&&group.Key=="ConsoleVariables")builder.AppendLine("; Community examples; behavior not independently verified\r\ndw.VehiclePowerConsumptionMultiplier=0.5\r\nCommunity.ExperimentalFlag=false\r\n+DemoArray=One\r\n+DemoArray=Two"); }
         builder.AppendLine("\r\n[Custom]\r\n; unknown entries are retained\r\nExperimentalValue=keep-me");var text=builder.ToString();if(n=="UserEngine.ini")text=text.Replace("\r\n","\n");var bytes=Encoding.UTF8.GetBytes(text);return new ConfigFile(n,"/demo/UserSettings/"+n,bytes,Convert.ToHexStringLower(SHA256.HashData(bytes)));
     });
     private string request="200Mi",limit="1Gi";private int? minimum=0;

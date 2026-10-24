@@ -12,6 +12,7 @@ public sealed record NumericSettingRange(double Minimum, double Maximum, double 
         var ratio = desired / power;
         var step = (ratio <= 1 ? 1 : ratio <= 2 ? 2 : ratio <= 5 ? 5 : 10) * power;
         if (setting.Kind == "integer") step = 1;
+        if(setting.Step is {} preferred&&double.IsFinite(preferred)&&preferred>0)step=preferred;
         return new(min, max, step, setting.Kind == "integer");
     }
     public double Position(string text) => double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && double.IsFinite(value) ? Math.Clamp(value, Minimum, Maximum) : Minimum;

@@ -4,7 +4,7 @@ The project's MIT license covers its original contributions. It does not grant r
 
 ## Bundled runtime
 
-The self-contained v1.2.0 release uses the same runtime dependencies as accepted v1.1.2: Microsoft.NETCore.App.Runtime.win-x64 **10.0.13** and Microsoft.WindowsDesktop.App.Runtime.win-x64 **10.0.13**. These are the two runtime packs named in `ArrakisServerManager.deps.json`. The source projects contain no third-party application NuGet PackageReference entries; the update system uses framework HTTP/JSON/cryptography/WPF APIs. Framework-pack package metadata points to dotnet/dotnet revision `4099f83977f4d29604a9aeb971fb0a7bc1d5f699`.
+The self-contained v1.3.0 release uses the same runtime dependencies as accepted v1.1.2: Microsoft.NETCore.App.Runtime.win-x64 **10.0.13** and Microsoft.WindowsDesktop.App.Runtime.win-x64 **10.0.13**. These are the two runtime packs named in `ArrakisServerManager.deps.json`. The source projects contain no third-party application NuGet PackageReference entries; the update and custom-configuration systems use framework HTTP/JSON/cryptography/WPF APIs. Framework-pack package metadata points to dotnet/dotnet revision `4099f83977f4d29604a9aeb971fb0a7bc1d5f699`.
 
 | Material | Terms/notices included in the public package |
 | --- | --- |
