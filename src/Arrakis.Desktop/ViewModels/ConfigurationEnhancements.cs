@@ -49,8 +49,8 @@ public sealed partial class ConfigurationViewModel
     public string SliderMaximumLabel=>SliderMaximum.ToString("G",CultureInfo.InvariantCulture)+" · "+SliderDirection(true);
     private string SliderDirection(bool higher)=>SelectedSetting?.Definition.Key switch
     {
-        "WaterExtractionRate" or "LootRespawnSpeed"=>higher?"Slower":"Faster",
-        "ResourceRespawnSpeed" or "NPCRespawnMultiplier"=>higher?"Faster":"Slower",
+        "LootRespawnSpeed"=>higher?"Slower":"Faster",
+        "WaterExtractionRate" or "ResourceRespawnSpeed" or "NPCRespawnMultiplier"=>higher?"Faster":"Slower",
         "PlayerStaminaDrain"=>higher?"More drain":"Less drain",
         _=>higher?"Maximum":"Minimum"
     };

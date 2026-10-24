@@ -1,72 +1,92 @@
-# Arrakis Server Manager 1.1.1
+# Arrakis Server Manager
 
-Stable-source acceptance and remaining live-operation limits are recorded in [v1.1.1 acceptance](docs/ACCEPTANCE-v1.1.1.md). The accepted executable package is preserved separately from source-control baseline documentation.
+A native Windows desktop control center for an **existing official Dune: Awakening self-hosted server**. Monitor your Windows host, Hyper-V guest and battlegroup, review configuration changes, and manage supported administrative workflows from one WPF application.
 
-v1.1.1 corrects completed utility/Job health, verified infrastructure classification, confirmed idle/on-demand terminology and unchanged-value Add to draft behavior. See [stabilization root cause and acceptance](docs/RELEASE-v1.1.1.md).
+**Version v1.1.2 · Windows x64 · .NET 10**
 
-Configuration sliders with precise typed input, applicable categories, state-aware Dashboard VM controls, qualified workload health, recent resource charts, separate map/infrastructure views, current/historical diagnostics, log filtering and verified local backup status. The v1.0.2 authoritative draft/frozen-payload checks and v1.0.1 BusyBox locking, rollback and unknown-outcome safeguards remain intact. See [v1.1 release and acceptance](docs/RELEASE-v1.1.0.md) and the historical [v1.0.2 report](docs/RELEASE-v1.0.2.md).
+v1.1.2 corrects `WaterExtractionRate`: **higher = faster water extraction; lower = slower**. This follows user-reported gameplay observations that contradict Funcom's supplied template comment; the direction has not been independently verified during development. The 0.1–10 range, key, values and save behavior are unchanged. Existing server comments are preserved rather than silently rewritten. The committed/tagged v1.1.1 stable baseline remains intact; see [the correction notes](docs/RELEASE-v1.1.2.md).
 
-A native Windows control center for an **existing** Dune: Awakening self-hosted installation. Built with C#/.NET 10 and WPF; no browser, Node.js or local web service is required for normal administration.
-
-## Run
-
-The self-contained Windows x64 build is under `artifacts/release/ArrakisServerManager-v1.1.1-win-x64/ArrakisServerManager.exe`. Keep the entire release folder together. No separately installed .NET runtime is required. Windows OpenSSH and the Hyper-V PowerShell module remain operating-system prerequisites for their respective integrations. All prior release folders are preserved.
-
-Use **Launch as Administrator.cmd** for the Live administrator workflow: Windows requests UAC for the manager under the same Windows account. Direct Hyper-V reads and VM commands then use the existing adapter without a redundant UAC command helper. Double-clicking the executable remains supported as the current user; insufficient permissions stay explicitly unavailable, and the narrow UAC helpers remain available. **Launch Demo.cmd** needs no elevation and uses simulated infrastructure with a separate Demo-v1.1.1 data directory. Live mode retains existing preferences/history/safety guards. The executable is unsigned; there is no installer, service, telemetry collector or automatic updater.
-
-On first launch the app looks for the Steam server installation, existing VM, SSH key and a recent management-log VM address. If connection fails, Tools & Settings opens with simple connection fields. Save connection changes before refreshing. Normal monitoring does not request elevation. Your account needs Hyper-V authorization for direct VM readings; a narrow UAC snapshot and separate UAC lifecycle helper are available. The GUI remains unelevated.
-
-Existing Windows OpenSSH `known_hosts` identities are respected. A new host requires explicit fingerprint review against the VM console; changed pins are never silently replaced. No setup/reinstall operation is present.
+This is an independent, unofficial community project. It is not affiliated with, endorsed by, or supported by Funcom or the owners of Dune. Dune: Awakening and related names belong to their respective owners. The application does not include, download or install Funcom's proprietary server software, game assets, Steam content or server credentials. Obtain and configure the official server separately using [Funcom's self-hosting instructions](https://duneawakening.com/self-hosted-servers/).
 
 ## Features
 
-- Live Windows RAM/CPU/client detection, Hyper-V information where permitted, guest RAM/swap/CPU/disk, Kubernetes readiness, dynamic maps/services, allocation/CrashLoop/OOM diagnostics and configurable pressure warnings.
-- Confirmed VM start, graceful guest shutdown and a separate emergency power-off. Official battlegroup start/stop/restart/update operations have asynchronous output, timeouts and observed-state verification.
-- Searchable maps, requests/limits/usage/restarts/minimum-instance information, resource-version guarded memory and Director MinServers changes, server-side validation, rollback copies and the official editor fallback.
-- Visual settings catalog from inspected Funcom templates and a loss-preserving raw editor for UserGame.ini, UserEngine.ini and UserServerCustomSettings.ini. Reviewable differences, validation, undo, encrypted local backups, remote rollback copies, atomic replacement, readback and conflict detection.
-- Official database backup/import, remote artifact listing, size/SHA-256 verified downloads, and separate configuration/diagnostic categories. Import requires an already stopped battlegroup and explicit destructive confirmation.
-- Bounded log tails, selected pod logs, events, retained sanitized operation history, official log exports and complete diagnostic bundles. Read operations can be cancelled; submitted mutations cannot be cancelled unsafely.
-- Director NodePort discovery from port 11717, checked File Browser shortcut, persisted preferences/window placement, configurable directories, native networking/password/experimental-swap consoles and isolated demo failure scenarios.
+- **Dashboard:** Windows and guest resource usage, recent resource history, VM state, battlegroup health, and state-aware lifecycle controls. Unavailable status stays distinct from stopped status.
+- **Configuration Editor 2.0:** precise sliders and typed values, searchable categories, separate saved/draft/proposed values, semantic no-op detection, and synchronized visual/raw INI editing.
+- **Reviewed configuration saves:** original-file hash checks, a frozen reviewed payload, compatible remote locking, encrypted local backups, remote rollback copies, atomic replacement and readback verification. Visual edits preserve comments, unknown settings, encoding and line endings.
+- **Maps and infrastructure:** Game Maps, Infrastructure and All views; validated map-resource proposals; completed utility/Job handling; and Idle / On demand only when configuration explicitly supports that state.
+- **Backups and diagnostics:** verified downloads, bounded log views, current versus historical Kubernetes events, copyable error details, official-editor fallback and durable unknown-outcome recovery guidance.
+- **Isolated Demo mode:** explore the UI with simulated infrastructure before connecting to a server.
 
-An unknown remote outcome locks subsequent mutations, including across restarts. Inspect current state, then explicitly acknowledge your review in Tools. App crashes during a mutation also retain this guard.
+## Screenshots
 
-## Build and test
+These captures use simulated adapters, fixture settings and a documentation-only IP address. They contain no live server captures or credentials.
 
-Install .NET SDK **10.0.402** (or a compatible patch) from Microsoft. A project-local SDK under `.tools/dotnet` is supported. The development tests also require a running Linux Docker engine and the official pinned BusyBox 1.37.0 image (not required by the application):
+![Dashboard in isolated Demo mode](docs/images/dashboard-demo.png)
+
+![Corrected water extraction slider labels in an isolated configuration fixture](docs/images/configuration-demo.png)
+
+![Water extraction description and explicit user-observation provenance](docs/images/water-description-demo.png)
+
+## Requirements
+
+- An x64 Windows installation supported by [.NET 10](https://learn.microsoft.com/en-us/dotnet/core/install/windows). Windows 11 with Hyper-V is the intended desktop host for the official Windows server workflow. Hyper-V availability depends on your Windows edition, hardware virtualization and existing server setup.
+- An already installed, configured official server and Hyper-V VM. Server capacity requirements are separate from this desktop application's requirements; follow Funcom's guidance.
+- Windows OpenSSH Client, an existing server SSH key, and permission to access it. Keys and passwords are not supplied with this project.
+- The Hyper-V PowerShell module and appropriate account permissions for VM discovery and management. SSH monitoring alone does not grant Hyper-V access.
+- The inspected Funcom CLI/Kubernetes layout described in [Compatibility](docs/COMPATIBILITY.md). Automatic mutations are deliberately disabled when the installed CLI digest or resource schema is not recognized. This is not a universal compatibility claim.
+- A display capable of the application's 1040 × 700 minimum window in Windows logical pixels.
+
+The ZIP is self-contained: a separate .NET installation, browser, Node.js or local web service is not required to run it. The included Microsoft runtime components have separate [license terms](BUNDLED-RUNTIME-TERMS.md).
+
+## Download and install
+
+1. Open [Releases](https://github.com/sdfox945/ArrakisServerManager/releases) and download **ArrakisServerManager-v1.1.2-win-x64.zip** and **SHA256SUMS.txt**. GitHub's automatically generated source archives are source code, not the runnable application.
+2. In PowerShell, run `Get-FileHash .\ArrakisServerManager-v1.1.2-win-x64.zip -Algorithm SHA256` and compare the complete hash with SHA256SUMS.txt from the same release. A checksum detects a changed download; it is not a code signature.
+3. Extract the entire ZIP into a local folder. Keep the executable, adjacent DLLs, launchers, documentation and licenses together. Do not run the executable from inside the ZIP or copy only the EXE.
+4. Read [LICENSE](LICENSE), [bundled runtime terms](BUNDLED-RUNTIME-TERMS.md) and [acceptance limitations](docs/ACCEPTANCE-v1.1.1.md). Launch **Launch Demo.cmd** first; Demo uses isolated simulated infrastructure and needs no elevation.
+5. For Live mode, launch **ArrakisServerManager.exe**, or use **Launch as Administrator.cmd** when your Hyper-V workflow requires elevation. The administrator launcher requests Windows UAC; approve only if you intend to run this application elevated. A different Windows account has different preferences, keys and DPAPI-protected backups.
+6. Check the detected installation/VM, existing SSH key and IP address in **Tools & Settings**. Save connection changes before refreshing. Review a new host fingerprint against the VM console or another trusted source. Changed host identities fail closed; do not bypass host verification.
+
+The executable is unsigned. Windows may show a publisher/reputation warning; verify the source and download before deciding whether to run it. There is no installer, Windows service or automatic application updater. Keep an earlier release folder if you need to return to it.
+
+## Operational safety and acceptance
+
+The user accepted the live UI and configuration preview for v1.1.1. The earlier v1.0.2 configuration-save workflow also received user-confirmed live acceptance. v1.1.2 retains those 154 automated tests and adds five correction regressions, including two native WPF workflows (159 tests / 29 native workflows overall). This correction does not add independent gameplay or disruptive-operation verification. Mutation scenarios use simulated gateways, temporary files or isolated BusyBox containers.
+
+**VM graceful shutdown/startup, battlegroup lifecycle transitions, individual map-resource modifications/reconciliation, database restore, server updates and other unexercised disruptive operations still require separate live acceptance.** Passing simulations or reviewing a preview does not establish that these operations succeeded on a live server. Physical multi-monitor DPI transitions and UAC behavior also require manual acceptance on the target machine.
+
+Keep independent server/database backups. Runtime disruptive actions require explicit confirmation. A configuration review must show only the changes you intend; cancel and reload if it does not. Engine settings may require a separately confirmed restart to take effect.
+
+If an operation reports an **unknown outcome**, further mutations are blocked. Inspect the affected live file/state and official console first, determine whether an operation remains in progress, and only then use **Acknowledge reviewed unknown outcome**. Do not clear the guard simply to retry. See [Troubleshooting](docs/TROUBLESHOOTING.md) and [acceptance status](docs/ACCEPTANCE-v1.1.1.md).
+
+## Troubleshooting and privacy
+
+| Symptom | Action |
+| --- | --- |
+| Hyper-V access denied or VM unavailable | Verify module/account permissions; use the administrator launcher if appropriate. Unavailable does not mean the VM is stopped. |
+| SSH cannot connect | Verify the running VM, saved IP override, existing key path and trusted host identity. No replacement key is generated automatically. |
+| CLI changed / automatic writes disabled | Follow the compatibility fallback. A changed CLI must be reviewed and tested; changing its pinned hash alone is unsafe. |
+| Save conflict or verification failure | Reload and inspect the live file and operation details before preparing a new diff. Keep rollback copies. |
+| Backup shown as unverified | Inspect the size/hash receipt and verify a local copy. A configuration backup is not a database backup. |
+| Window or controls do not fit | Use at least the minimum logical window size; check Windows scaling. See the target-machine acceptance limits above. |
+
+Preferences, operation history, SSH host pins and encrypted configuration backups are stored under `%LOCALAPPDATA%\ArrakisServerManager`; the Demo launcher uses its separate `Demo-v1.1.2` directory. Private keys are referenced, not copied into the release. The application does not upload diagnostics automatically. Official log bundles and backups can contain secrets or player data: review and redact them before sharing. Microsoft runtime crash reporting is governed by its separate terms and Windows settings.
+
+Report reproducible problems through [GitHub Issues](https://github.com/sdfox945/ArrakisServerManager/issues), using Demo/sanitized data where possible. Include the application version and concise operation/error details. Never attach SSH keys, service tokens, passwords, production INI files, databases or unreviewed log archives to a public issue.
+
+## Build and test from source
+
+Use Windows, .NET SDK **10.0.402** (or the compatible patch allowed by `global.json`) and PowerShell. No application `PackageReference` dependencies are used beyond .NET/Windows Desktop framework packs. The full test suite also needs a Linux Docker engine with this pinned BusyBox image available:
 
 ```powershell
 docker pull busybox@sha256:bdf57e528e45e4433820e045b29b4597825a1c9e38353532d90a01445013f82e
+.\scripts\build.ps1
 ```
 
-Run from Windows PowerShell:
+The default suite uses isolated test adapters and containers. `--live-read-only` is a separate, opt-in probe and is not part of that suite. Native tests need an interactive Windows desktop; keyboard/focus-sensitive checks can be affected by concurrent desktop interaction. Tests and screenshots are written under ignored `artifacts/`.
 
-```powershell
-.\scripts\build.ps1 -Publish
-.\scripts\test-ui.ps1
-```
+For a new local self-contained build, run `.\scripts\build.ps1 -Publish`; run `.\scripts\test-ui.ps1` for the native six-page Demo smoke. Publication builds a local output folder and does not upload it. That build script is a development publisher; the public ZIP additionally includes the licenses and runtime terms listed in [Third-party notices](THIRD_PARTY_NOTICES.md). Run the five correction tests alone with `dotnet run --project tests/Arrakis.Tests -c Release -- --correction`. See [Testing](docs/TESTING.md), [Architecture](docs/ARCHITECTURE.md), [v1.1.0 enhancements](docs/RELEASE-v1.1.0.md), [v1.1.1 stabilization](docs/RELEASE-v1.1.1.md), [v1.1.2 correction](docs/RELEASE-v1.1.2.md) and [Changelog](CHANGELOG.md).
 
-The first command builds the complete Visual Studio solution, runs the executable regression suite, then publishes the self-contained x64 folder. `dotnet test` is not the test entry point; the dependency-free regression harness runs with `dotnet run --project tests/Arrakis.Tests -c Release`. Test evidence is written under `artifacts/tests`.
+## License and attribution
 
-The full suite includes 154 tests, including 27 native WPF workflows, against isolated recording gateways and BusyBox containers. The baseline editor-only subset runs with `dotnet run --project tests/Arrakis.Tests -c Release -- --editor-native`; the 39 enhancement cases run with `--enhancements`, and the 25 stabilization cases with `--stabilization`. Native tests cover slider UI Automation/keyboard input, categories, file choices, review dialogs, lifecycle state, cancellation and minimum/scaled rendering. A credential-sanitized representative INI fixture is used; no native test connects to production.
-
-An explicit, separate `--live-read-only` test-harness mode reads discovery, logs, configuration hashes, backup listings and web-tool availability. It contains no calls to mutation, trust, editor or restore methods. Do not exercise live changing controls during development.
-
-See [architecture](docs/ARCHITECTURE.md), [troubleshooting](docs/TROUBLESHOOTING.md), [testing and manual acceptance](docs/TESTING.md), [compatibility](docs/COMPATIBILITY.md), and [release evidence](docs/RELEASE-REPORT.md).
-
-## Important compatibility limits
-
-Funcom's inspected CLI combines update checking and applying. The app can compare the running image with the already-downloaded revision; **online check-only is not supported**. Applying updates is a separate confirmed action. CLI-changing updates disable further automatic CLI mutations until compatibility is reviewed.
-
-Automatic map writes support the inspected `igw.funcom.com/v1` Battlegroup layout. Unknown layouts or multiple ambiguous battlegroups fail safely and use Funcom's interactive editor. This release deliberately excludes direct Kubernetes pod patches, game database manipulation, client configuration writes, reinstall and automatic repairs.
-
-SSH key rotation remains in Funcom's Windows tooling; its current implementation disables host verification and replaces local/remote keys in a way that needs a separate security/recovery review before GUI automation. Networking, password and experimental swap actions open explicitly labeled native consoles; follow their prompts and verify outcomes there.
-
-The user accepted v1.0.2 configuration saves live. New v1.1 behavior and other production-changing functions were tested with **isolated simulation**; live mutation acceptance remains manual. No v1.1 live server operations were performed during development.
-
-## v1.1 everyday workflows
-
-- **Configuration:** categories/counts reflect recognized entries in the active document and current search. Check Include supported settings available to add to see absent entries under All categories. Saved/draft/proposed values are separate. Sliders require verified bounds; focus or initialization never rounds exact typed values. Only Add to draft changes text, and only final approval sends frozen bytes. The complete verified path is available through its tooltip/Copy path.
-- **Dashboard:** Start VM requires verified Off; graceful shutdown requires verified Running. Unknown/access-denied/transitional states disable both. Battlegroup controls use the same state rules on both pages. Resource charts retain at most 30 minutes/361 samples in memory; select 15 or 30 minutes. Missing metrics form gaps, not zero readings. GiB/MiB labels are binary units; guest RAM is already part of host RAM usage.
-- **Maps:** Game Maps is the default. Infrastructure and All expose known services and unclassified entries. Game-map editing requires an authoritative set relationship, valid original quantities and a real change. Requests reserve scheduling memory; limits are caps, not actual usage.
-- **Diagnostics:** current object problems are distinct from recovered/historical events; unknown object state stays unconfirmed. Select an event for wrapped/copyable full evidence. Log source/search/severity filters preserve source timestamps. The tail is bounded to 60 KB; Cancel read stops live tail. Auto-scroll follows only when already near the end.
-- **Backups:** refresh the official inventory to see the latest nonempty database artifact separately from encrypted INI/diagnostic copies. A downloaded copy is labeled verified only after its identity/size/SHA-256 receipt and actual local bytes match. Listing a backup does not prove it can be restored. Cloud destinations are warned about without being changed.
+Original project code and project-authored contributions, including the custom programmatically drawn application icon, are offered under the [MIT License, Copyright (c) 2026 Steven Fox](LICENSE). Third-party material is not relicensed by that notice; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) and [BUNDLED-RUNTIME-TERMS.md](BUNDLED-RUNTIME-TERMS.md). The retained source-only configuration fixture includes third-party-origin functional material with its own [provenance and license-scope explanation](docs/FIXTURE-PROVENANCE.md). No Funcom server software, official artwork, private keys or game data is bundled.

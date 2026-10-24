@@ -1,5 +1,7 @@
 # Arrakis Server Manager v1.1.0
 
+Historical report: v1.1.2 subsequently corrects WaterExtractionRate guidance to higher = faster extraction and lower = slower, based on user-reported gameplay observations contradicting the supplied template comment, not independent verification. See RELEASE-v1.1.2.md; the original v1.1.0 package remains unchanged.
+
 Native Windows usability, monitoring and operational-control enhancement, based on the accepted v1.0.2 baseline. Source work is on `feature/v1.1`, based on `51a0cbb47c99686f0a67606da86811e25771af5f`. `main` and annotated `v1.0.2` remain unchanged. No release commit, tag, remote or push is created for v1.1.
 
 ## Configuration Editor 2.0

@@ -29,11 +29,11 @@ public static class SettingCatalog
     private static List<SettingDefinition> Build()
     {
         var list = new List<SettingDefinition>();
-        void Custom(string key,string cat,string description,string template="1.000000",double? min=0,double? max=10,string direction="Behavior not documented; verify in game.",string kind="number",string[]? choices=null) => list.Add(new("UserServerCustomSettings.ini","/Script/DuneSandbox.UserServerCustomSettings",key,cat,description,template,kind,min,max,choices,direction));
+        void Custom(string key,string cat,string description,string template="1.000000",double? min=0,double? max=10,string direction="Behavior not documented; verify in game.",string kind="number",string[]? choices=null,string evidence="Documented in installed Funcom template") => list.Add(new("UserServerCustomSettings.ini","/Script/DuneSandbox.UserServerCustomSettings",key,cat,description,template,kind,min,max,choices,direction,Evidence:evidence));
         Custom("DifficultyLevel","General","Custom rules preset.","Custom",null,null,kind:"choice",choices:["Custom"]);
         Custom("CraftingCost","Crafting","Crafting cost multiplier. Zero removes crafting costs.");
         Custom("CraftingTimeMultiplier","Crafting","Crafting/refining duration. Zero is instant.",max:5);
-        Custom("WaterExtractionRate","Water","Extraction duration multiplier.",min:0.1,direction:"Higher values make extraction take longer.");
+        Custom("WaterExtractionRate","Water","Water extraction speed multiplier.",min:0.1,direction:"Higher values make water extraction faster; lower values make it slower.",evidence:"Effect direction is based on user-reported gameplay observations, contradicting Funcom's supplied template comment; not independently verified");
         Custom("LootRespawnSpeed","Respawning","Loot chest respawn timing.",min:0.1,direction:"Higher values make chests take longer to return.");
         Custom("ResourceRespawnSpeed","Respawning","Resource respawn timing.",min:0.1,direction:"Higher values respawn resources sooner.");
         Custom("BuildingCostMultiplier","Building","Building cost multiplier. Zero removes costs.");

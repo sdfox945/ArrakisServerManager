@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <Version>1.1.1</Version>
+    <Version>1.1.2</Version>
     <Authors>Arrakis Server Manager</Authors>
     <Deterministic>true</Deterministic>
     <RestoreConfigFile>$(MSBuildThisFileDirectory)NuGet.Config</RestoreConfigFile>

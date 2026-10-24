@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.2
+
+- Correct WaterExtractionRate guidance and slider endpoints: higher values make extraction faster; lower values make it slower. This follows user-reported gameplay observations contradicting Funcom's supplied template comment, without independent gameplay verification.
+- Preserve the 0.1–10 range, setting identity, template example, user values and configuration-save safeguards. Existing INI comments are never rewritten automatically.
+- Add catalog, fixture, byte-preservation and native WPF regressions for the corrected description, rendered labels and reviewed save payload. Preserve all prior stable tags and release outputs.
+
 ## 1.1.1
 
 - Correct successful terminal workload health: PodCompleted readiness is not an active failure. Preserve explicit container/Job failures, active readiness errors and required replica warnings.
